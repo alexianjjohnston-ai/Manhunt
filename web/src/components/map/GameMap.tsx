@@ -104,6 +104,7 @@ function markerEl(kind: string, glyph: string, label?: string, sub?: string): HT
   el.dataset.kind = kind;
   const body = document.createElement('div');
   body.className = kind;
+  body.dataset.body = '';
   if (glyph) {
     const s = document.createElement('span');
     s.textContent = glyph;
@@ -325,8 +326,9 @@ export const GameMap = forwardRef<GameMapHandle, Props>(function GameMap(
         () => markerEl(cls, initials(p.name), p.name, sub),
         (el) => {
           setLabel(el, p.name, sub);
-          const body = el.firstElementChild as HTMLElement;
-          if (body.className !== cls) body.className = cls;
+          // Look up the body explicitly: the radar pulse ring is prepended as a sibling.
+          const body = el.querySelector<HTMLElement>('[data-body]');
+          if (body && body.className !== cls) body.className = cls;
         },
         3,
       );

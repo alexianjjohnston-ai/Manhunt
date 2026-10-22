@@ -258,3 +258,20 @@ test('switching map styles keeps the play area and markers (even when tiles are 
   }
   await expect(host.page.locator('.mh-self')).toBeVisible();
 });
+
+test('each revealed runner has exactly one marker across successive pings', async ({ browser }, info) => {
+  const host = await newPlayer(browser, info);
+  const runner = await newPlayer(browser, info, { latitude: 51.503, longitude: -0.1246 });
+  const { code } = await hostGame(host);
+  await joinViaUi(runner, code, 'Uno');
+  await assignTeam(host.page, 'Hostie', 'Hunters');
+  await assignTeam(host.page, 'Uno', 'Runners');
+  await runner.page.getByTestId('ready-button').click();
+  await host.page.getByTestId('start-button').click();
+  await expect(host.page.locator('.mh-runner-ping')).toHaveCount(1, { timeout: 25_000 });
+  await runner.setGeo(51.506, -0.12);
+  // Second reveal (with radar pulse) must still leave a single marker.
+  await expect.poll(() => host.frames.some((f) => f.includes('"seq":2')), { timeout: 25_000 }).toBe(true);
+  await host.page.waitForTimeout(1000);
+  await expect(host.page.locator('.mh-runner-ping')).toHaveCount(1);
+});

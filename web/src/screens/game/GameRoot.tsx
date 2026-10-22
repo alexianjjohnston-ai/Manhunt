@@ -72,7 +72,7 @@ export default function GameRoot({ gameId }: { gameId: string }) {
       {view.game.status === 'ended' && <Results view={view} />}
       <ConnectionBanner />
       <SafetyGate />
-      {view.game.status !== 'running' && <Toasts />}
+      {view.game.status === 'lobby' && <Toasts />}
     </>
   );
 }
