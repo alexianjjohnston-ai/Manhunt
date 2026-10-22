@@ -116,6 +116,7 @@ export function view(h: Harness, g: GameState, playerId: string) {
     warnings: (id) => h.engine.warningsFor(g.id, id),
     fastPingsAllowed: true,
     simulationAllowed: true,
+    locationRetentionMs: 3_600_000,
   });
 }
 

@@ -41,6 +41,7 @@ export function createApp(config: ServerConfig, opts: { now?: () => number; auto
     fastPingsAllowed: config.allowFastPings,
     simulationAllowed: config.allowSimulation,
     allowedOrigins,
+    locationRetentionMs: config.locationRetentionMinutes * 60_000,
   });
 
   // Per-IP limits for the REST endpoints. Failed code lookups have their own stricter bucket

@@ -35,7 +35,7 @@ export class SocketHub {
 
   constructor(
     private engine: GameEngine,
-    private opts: { fastPingsAllowed: boolean; simulationAllowed: boolean; allowedOrigins: string[] | null },
+    private opts: { fastPingsAllowed: boolean; simulationAllowed: boolean; allowedOrigins: string[] | null; locationRetentionMs: number },
   ) {
     this.msgLimiter = new RateLimiter(30, 10, () => engine.now());
     this.authLimiter = new RateLimiter(20, 0.5, () => engine.now());
@@ -197,6 +197,7 @@ export class SocketHub {
       warnings: (pid) => this.engine.warningsFor(g.id, pid),
       fastPingsAllowed: this.opts.fastPingsAllowed,
       simulationAllowed: this.opts.simulationAllowed,
+      locationRetentionMs: this.opts.locationRetentionMs,
     });
     // Skip identical views (ignoring the server timestamp) to save bandwidth.
     const key = JSON.stringify({ ...view, serverNow: 0 });

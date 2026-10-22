@@ -10,6 +10,7 @@ export interface ProjectionContext {
   warnings: (playerId: string) => string[];
   fastPingsAllowed: boolean;
   simulationAllowed: boolean;
+  locationRetentionMs: number;
 }
 
 const LIVE_FIX_MAX_AGE_MS = 120_000;
@@ -143,6 +144,8 @@ export function project(g: GameState, viewerId: string, ctx: ProjectionContext):
       createdAt: g.createdAt,
       fastPingsAllowed: ctx.fastPingsAllowed,
       simulationAllowed: ctx.simulationAllowed,
+      locationsPurgeAt: ended && g.clock.endedAt ? g.clock.endedAt + ctx.locationRetentionMs : null,
+      locationsPurged: g.locationsPurged,
     },
     me: {
       id: me.id,

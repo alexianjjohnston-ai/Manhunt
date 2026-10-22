@@ -1,0 +1,352 @@
+@import 'tailwindcss';
+@import 'maplibre-gl/dist/maplibre-gl.css';
+
+/* ---------------------------------------------------------------------------
+   Design tokens. Semantic colours are CSS variables so "daylight" (high-contrast
+   outdoor) mode can swap them without touching components.
+   --------------------------------------------------------------------------- */
+@theme {
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Space Grotesk Variable', 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --color-bg: var(--mh-bg);
+  --color-surface: var(--mh-surface);
+  --color-surface-2: var(--mh-surface-2);
+  --color-surface-3: var(--mh-surface-3);
+  --color-line: var(--mh-line);
+  --color-line-strong: var(--mh-line-strong);
+  --color-fg: var(--mh-fg);
+  --color-muted: var(--mh-muted);
+  --color-faint: var(--mh-faint);
+
+  --color-signal: var(--mh-signal);
+  --color-signal-fg: var(--mh-signal-fg);
+  --color-ice: var(--mh-ice);
+  --color-runner: var(--mh-runner);
+  --color-hunter: var(--mh-hunter);
+  --color-ok: var(--mh-ok);
+  --color-warn: var(--mh-warn);
+  --color-danger: var(--mh-danger);
+
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
+  --radius-3xl: 1.75rem;
+
+  --animate-sweep: sweep 4s linear infinite;
+  --animate-ping-ring: ping-ring 2.4s cubic-bezier(0.2, 0.6, 0.3, 1) infinite;
+  --animate-blink: blink 1.2s steps(2, start) infinite;
+
+  @keyframes sweep {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  @keyframes ping-ring {
+    0% {
+      transform: scale(0.4);
+      opacity: 0.9;
+    }
+    100% {
+      transform: scale(2.6);
+      opacity: 0;
+    }
+  }
+  @keyframes blink {
+    to {
+      visibility: hidden;
+    }
+  }
+}
+
+:root,
+[data-theme='dark'] {
+  --mh-bg: #080a0d;
+  --mh-surface: #0f1318;
+  --mh-surface-2: #161b22;
+  --mh-surface-3: #1f262f;
+  --mh-line: rgb(148 163 184 / 0.14);
+  --mh-line-strong: rgb(148 163 184 / 0.28);
+  --mh-fg: #f1f5f9;
+  --mh-muted: #9aa7b6;
+  --mh-faint: #64748b;
+  --mh-signal: #ff4b2b;
+  --mh-signal-fg: #ffffff;
+  --mh-ice: #8be3ff;
+  --mh-runner: #38d7f5;
+  --mh-hunter: #ffa21f;
+  --mh-ok: #4ade80;
+  --mh-warn: #fbbf24;
+  --mh-danger: #ff3b5c;
+  --mh-glass: rgb(12 15 20 / 0.78);
+  --mh-shadow: 0 10px 30px -10px rgb(0 0 0 / 0.7);
+  color-scheme: dark;
+}
+
+/* Daylight: high contrast for bright sunlight. */
+[data-theme='daylight'] {
+  --mh-bg: #eef1f4;
+  --mh-surface: #ffffff;
+  --mh-surface-2: #f3f5f8;
+  --mh-surface-3: #e4e8ee;
+  --mh-line: rgb(15 23 42 / 0.16);
+  --mh-line-strong: rgb(15 23 42 / 0.4);
+  --mh-fg: #05080c;
+  --mh-muted: #334155;
+  --mh-faint: #475569;
+  --mh-signal: #d42a0c;
+  --mh-signal-fg: #ffffff;
+  --mh-ice: #0369a1;
+  --mh-runner: #0077a8;
+  --mh-hunter: #b45309;
+  --mh-ok: #15803d;
+  --mh-warn: #a16207;
+  --mh-danger: #be123c;
+  --mh-glass: rgb(255 255 255 / 0.92);
+  --mh-shadow: 0 8px 24px -8px rgb(15 23 42 / 0.35);
+  color-scheme: light;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  html {
+    background: var(--mh-bg);
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-bg text-fg font-sans antialiased;
+    overscroll-behavior: none;
+    touch-action: manipulation;
+  }
+  [data-large-text='true'] {
+    font-size: 112.5%;
+  }
+  button,
+  [role='button'] {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  :focus-visible {
+    outline: 2px solid var(--mh-ice);
+    outline-offset: 2px;
+  }
+  ::selection {
+    background: color-mix(in srgb, var(--mh-signal) 40%, transparent);
+  }
+}
+
+@layer components {
+  .glass {
+    background: var(--mh-glass);
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+    box-shadow: var(--mh-shadow);
+  }
+  .safe-top {
+    padding-top: max(env(safe-area-inset-top), 0.75rem);
+  }
+  .safe-bottom {
+    padding-bottom: max(env(safe-area-inset-bottom), 0.75rem);
+  }
+  .safe-x {
+    padding-left: max(env(safe-area-inset-left), 1rem);
+    padding-right: max(env(safe-area-inset-right), 1rem);
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+  .grid-bg {
+    background-image:
+      linear-gradient(var(--mh-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--mh-line) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+  .label {
+    @apply text-[0.68rem] font-semibold tracking-[0.14em] uppercase text-muted;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Map markers (plain DOM, managed by GameMap)
+   --------------------------------------------------------------------------- */
+.mh-marker {
+  /* positioning comes from .maplibregl-marker (absolute); do not override it */
+  display: grid;
+  place-items: center;
+  pointer-events: auto;
+}
+.mh-marker .mh-label {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font: 600 11px/1.2 var(--font-sans);
+  color: #fff;
+  background: rgb(8 10 13 / 0.82);
+  border: 1px solid rgb(255 255 255 / 0.12);
+  padding: 2px 6px;
+  border-radius: 6px;
+  text-align: center;
+}
+.mh-marker .mh-label small {
+  display: block;
+  font-weight: 500;
+  font-size: 10px;
+  color: #cbd5e1;
+}
+.mh-self {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: #fff;
+  border: 4px solid var(--mh-ice);
+  box-shadow:
+    0 0 0 6px color-mix(in srgb, var(--mh-ice) 25%, transparent),
+    0 2px 10px rgb(0 0 0 / 0.5);
+}
+.mh-self.is-stale {
+  border-color: #94a3b8;
+  box-shadow: 0 0 0 6px rgb(148 163 184 / 0.2);
+}
+.mh-heading {
+  position: absolute;
+  inset: -16px;
+  border-radius: 999px;
+  background: conic-gradient(from -25deg, color-mix(in srgb, var(--mh-ice) 55%, transparent) 0 50deg, transparent 50deg);
+  pointer-events: none;
+}
+.mh-mate-runner,
+.mh-runner-ping {
+  width: 30px;
+  height: 30px;
+  transform: rotate(45deg);
+  border-radius: 7px;
+  background: var(--mh-runner);
+  border: 2px solid #fff;
+  box-shadow: 0 3px 12px rgb(0 0 0 / 0.55);
+  display: grid;
+  place-items: center;
+}
+.mh-mate-runner > span,
+.mh-runner-ping > span {
+  transform: rotate(-45deg);
+  font: 800 12px/1 var(--font-display);
+  color: #031018;
+}
+.mh-mate-runner {
+  width: 22px;
+  height: 22px;
+}
+.mh-runner-ping.is-stale {
+  background: repeating-linear-gradient(135deg, var(--mh-runner) 0 5px, #6fb6c6 5px 9px);
+}
+.mh-runner-ping.is-old {
+  background: #475569;
+  border-style: dashed;
+  opacity: 0.85;
+}
+.mh-mate-hunter {
+  width: 0;
+  height: 0;
+  border-left: 13px solid transparent;
+  border-right: 13px solid transparent;
+  border-bottom: 24px solid var(--mh-hunter);
+  filter: drop-shadow(0 0 1.5px #fff) drop-shadow(0 3px 6px rgb(0 0 0 / 0.6));
+}
+.mh-capture {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: #0b0e12;
+  border: 2px solid var(--mh-signal);
+  color: var(--mh-signal);
+  display: grid;
+  place-items: center;
+  font: 800 14px/1 var(--font-display);
+}
+.mh-pulse {
+  position: absolute;
+  width: 64px;
+  height: 64px;
+  border-radius: 999px;
+  border: 2px solid var(--mh-runner);
+  animation: ping-ring 2.4s cubic-bezier(0.2, 0.6, 0.3, 1) 3;
+  pointer-events: none;
+}
+
+.maplibregl-ctrl-attrib {
+  font-size: 10px !important;
+}
+.maplibregl-ctrl-bottom-left,
+.maplibregl-ctrl-bottom-right {
+  bottom: var(--map-bottom-inset, 0px) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+[data-reduced-motion='true'] *,
+[data-reduced-motion='true'] *::before,
+[data-reduced-motion='true'] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+}
+
+@keyframes ping-ring {
+  0% {
+    transform: scale(0.4);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+@keyframes sweep {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Range slider */
+.mh-range::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: 999px;
+  background: linear-gradient(to right, var(--mh-signal) var(--pct), var(--mh-surface-3) var(--pct));
+}
+.mh-range::-moz-range-track {
+  height: 8px;
+  border-radius: 999px;
+  background: linear-gradient(to right, var(--mh-signal) var(--pct), var(--mh-surface-3) var(--pct));
+}
+.mh-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  margin-top: -10px;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: #fff;
+  border: 3px solid var(--mh-signal);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.4);
+}
+.mh-range::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: #fff;
+  border: 3px solid var(--mh-signal);
+}

@@ -1,5 +1,5 @@
 import {
-  PING_WARNING_MS,
+  pingWarningMs,
   durationMs,
   elapsedMs,
   freshThresholdMs,
@@ -489,7 +489,7 @@ export class GameEngine {
       if (next.pingIntervalSec !== g.settings.pingIntervalSec && g.nextPingElapsed != null) {
         const base = g.lastPingElapsed ?? el;
         let nextPing = base + next.pingIntervalSec * 1000;
-        if (nextPing < el + PING_WARNING_MS) nextPing = el + PING_WARNING_MS;
+        if (nextPing < el + pingWarningMs(next)) nextPing = el + pingWarningMs(next);
         g.nextPingElapsed = nextPing;
         g.pingRequestedFor = null;
       }
@@ -1161,13 +1161,13 @@ export class GameEngine {
     }
 
     if (g.nextPingElapsed != null && el < dur) {
-      if (el >= g.nextPingElapsed - PING_WARNING_MS && g.pingRequestedFor !== g.nextPingElapsed && el < g.nextPingElapsed) {
+      if (el >= g.nextPingElapsed - pingWarningMs(g.settings) && g.pingRequestedFor !== g.nextPingElapsed && el < g.nextPingElapsed) {
         g.pingRequestedFor = g.nextPingElapsed;
         const revealAt = t + (g.nextPingElapsed - el);
         for (const p of g.players) {
           if (p.team === 'runner' && p.status === 'active') this.hooks.send(g.id, p.id, { type: 'pingRequest', revealAt });
         }
-        this.emit(g, 'ping_incoming', 'Location ping in 30 seconds', 'all');
+        this.emit(g, 'ping_incoming', `Location ping in ${Math.round(pingWarningMs(g.settings) / 1000)} seconds`, 'all');
         dirty = true;
       }
       if (el >= g.nextPingElapsed) {

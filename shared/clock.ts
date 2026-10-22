@@ -1,8 +1,11 @@
 import type { ClockState, GameSettings, Phase } from './types';
 
 export const MIN = 60_000;
-/** Runners are asked for a fresh GPS fix this long before each reveal. */
+/** Runners are asked for a fresh GPS fix this long before each reveal (30 s, less for very short intervals). */
 export const PING_WARNING_MS = 30_000;
+export function pingWarningMs(settings: Pick<GameSettings, 'pingIntervalSec'>): number {
+  return Math.min(PING_WARNING_MS, settings.pingIntervalSec * 1000 * 0.4);
+}
 
 /** Game time elapsed (excludes paused time). Pure function of server timestamps. */
 export function elapsedMs(clock: ClockState, now: number): number {

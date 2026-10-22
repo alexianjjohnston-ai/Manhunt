@@ -156,14 +156,14 @@ describe('HTTP + WebSocket server', () => {
     // Before the reveal, hunters have nothing.
     expect(JSON.stringify(hunter.view)).not.toContain('48.8584');
 
-    // Advance to 30 s before the first ping (head start 1m + 60s interval = 2m).
-    clock.advance(90_000);
+    // Advance to 20 s before the first ping (head start 1m + 60s interval = 2m; warning lead is 24 s).
+    clock.advance(100_000);
     app.engine.tick();
     const req = await runner2.waitFor((m) => m.type === 'pingRequest');
     expect(req.type).toBe('pingRequest');
     runner2.send({ type: 'location', lat: 48.8585, lng: 2.2946, accuracyM: 5, ageMs: 0 });
     await new Promise((r) => setTimeout(r, 60));
-    clock.advance(30_000);
+    clock.advance(20_000);
     app.engine.tick();
     const hv = await hunter.waitView((v) => v.runnerMarkers.length === 1);
     expect(hv.runnerMarkers[0]).toMatchObject({ playerId: runnerJ.playerId, status: 'ok', lat: 48.8585 });
