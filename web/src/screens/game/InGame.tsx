@@ -62,7 +62,11 @@ export function InGame({ view }: { view: GameView }) {
   const mates = useMemo(() => toMateMarkers(view, players), [view, players]);
   const captures = useMemo(() => toCaptureMarkers(view, players), [view, players]);
   const selfStale = fix ? Date.now() - fix.timestamp > 60_000 : true;
-  const self = fix && !paused ? { lat: fix.lat, lng: fix.lng, accuracy: fix.accuracy, heading: fix.heading, stale: selfStale } : null;
+  // Memoised so the map only re-renders layers when the fix actually changes.
+  const self = useMemo(
+    () => (fix && !paused ? { lat: fix.lat, lng: fix.lng, accuracy: fix.accuracy, heading: fix.heading, stale: selfStale } : null),
+    [fix, paused, selfStale],
+  );
   const bStatus = self ? boundaryStatus(self, game.boundary) : 'none';
 
   // Radar sweep on reveal.

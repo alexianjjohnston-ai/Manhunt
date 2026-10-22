@@ -43,7 +43,7 @@ Games are private: you need the 6-character join code or the invite link (plus a
 | Results | Winner, time played, pings, captures, escapees, ping-by-ping replay map, capture timeline, top hunter, and a rematch with the same players. |
 | Reliability | Reconnecting sockets with backoff, fast resume when the tab or network comes back, the same identity after a refresh (no duplicate players), state persisted to SQLite (survives restarts), and recovery when GPS stalls. |
 | PWA & UX | Installable manifest and app-shell service worker, wake lock, sounds and haptics, reduced motion, larger text, metric/imperial, and safe-area insets. |
-| Testing | 70 unit and integration tests, 10 Playwright end-to-end runs on iPhone 14 and Pixel 7 viewports, and a bot simulation mode. |
+| Testing | 71 unit and integration tests, 8 Playwright end-to-end scenarios on both iPhone 14 and Pixel 7 viewports (16 runs), and a bot simulation mode. |
 
 ## Quick start (local)
 
@@ -86,8 +86,8 @@ Browsers only grant location on **HTTPS** (or `localhost`), so a phone can't use
 
 ```bash
 npm run typecheck
-npm test          # 70 tests
-npm run test:e2e  # 10 tests (iPhone 14 + Pixel 7 emulation)
+npm test          # 71 tests
+npm run test:e2e  # 8 scenarios × 2 devices (iPhone 14 + Pixel 7 emulation)
 ```
 
 **Unit tests** (`tests/unit`) drive the engine with a fake clock. They cover:
@@ -124,6 +124,9 @@ npm run test:e2e  # 10 tests (iPhone 14 + Pixel 7 emulation)
 - inspection of raw WebSocket frames, proving that hunters receive runner coordinates only after a reveal and that runners never receive hunter coordinates
 - reconnecting after a refresh
 - kicking a player
+- emergency stop pausing play and halting sharing for everyone until the host resumes
+- a disputed capture resolved by the host
+- map style switching with the offline fallback
 - no horizontal overflow on any screen
 
 Real-device testing is still recommended before a big game. Use [the tunnel](#playing-on-real-phones-during-development) and check:

@@ -36,7 +36,7 @@ export const buttonVariants = cva(
         glass: 'glass text-fg border border-line',
       },
       size: {
-        sm: 'h-9 px-3 text-sm rounded-lg',
+        sm: 'h-10 px-3 text-sm rounded-lg',
         md: 'h-11 px-4 text-[0.95rem] rounded-xl',
         lg: 'h-13 px-5 text-base rounded-2xl',
         xl: 'h-15 px-6 text-lg rounded-2xl',
@@ -357,12 +357,23 @@ export function Sheet({
   dismissible?: boolean;
   tall?: boolean;
 }) {
+  const panel = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open || !dismissible) return;
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [open, dismissible, onClose]);
+  // Move focus into the sheet for keyboard / screen-reader users, and restore it on close.
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.activeElement as HTMLElement | null;
+    const t = window.setTimeout(() => panel.current?.focus({ preventScroll: true }), 50);
+    return () => {
+      window.clearTimeout(t);
+      prev?.focus?.({ preventScroll: true });
+    };
+  }, [open]);
   return createPortal(
     <AnimatePresence>
       {open && (
@@ -375,8 +386,11 @@ export function Sheet({
             onClick={() => dismissible && onClose()}
           />
           <motion.div
+            ref={panel}
+            tabIndex={-1}
+            aria-label={typeof title === 'string' ? title : undefined}
             className={cn(
-              'relative flex w-full max-w-lg flex-col rounded-t-3xl border border-b-0 border-line-strong bg-surface safe-bottom',
+              'relative flex w-full max-w-lg flex-col rounded-t-3xl border border-b-0 border-line-strong bg-surface safe-bottom outline-none',
               tall ? 'h-[88dvh]' : 'max-h-[88dvh]',
               className,
             )}

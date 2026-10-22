@@ -213,3 +213,23 @@ describe('HTTP + WebSocket server', () => {
     expect(limited).toBe(true);
   });
 });
+
+describe('behind a trusted proxy', () => {
+  it('rate-limits by the proxy-appended hop, so spoofed X-Forwarded-For prefixes do not bypass limits', async () => {
+    const config = { ...loadConfig({ NODE_ENV: 'test' }), databasePath: ':memory:', host: '127.0.0.1', staticDir: null, trustProxy: true };
+    const proxied = createApp(config, { autoTick: false });
+    const port = await proxied.listen(0);
+    try {
+      let limited = false;
+      for (let i = 0; i < 60 && !limited; i++) {
+        const res = await fetch(`http://127.0.0.1:${port}/api/games/ZZZZZ9/preview`, {
+          headers: { 'x-forwarded-for': `10.0.0.${i}, 203.0.113.7` },
+        });
+        if (res.status === 429) limited = true;
+      }
+      expect(limited).toBe(true);
+    } finally {
+      await proxied.close();
+    }
+  });
+});

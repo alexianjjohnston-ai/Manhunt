@@ -48,14 +48,22 @@ export function createApp(config: ServerConfig, opts: { now?: () => number; auto
   // so join codes cannot be brute-forced.
   const k = config.rateLimitScale;
   const createLimiter = new RateLimiter(5 * k, (5 * k) / 600);
-  const joinLimiter = new RateLimiter(15 * k, (15 * k) / 60);
+  // Generous enough for a whole group joining from one venue Wi-Fi (shared NAT IP).
+  const joinLimiter = new RateLimiter(40 * k, (30 * k) / 60);
   const missLimiter = new RateLimiter(20 * k, (20 * k) / 600);
 
+  /**
+   * Client IP for rate limiting. Behind a trusted proxy, prefer the platform header
+   * (Fly-Client-IP) and otherwise the LAST X-Forwarded-For hop — the one our proxy
+   * appended. Earlier hops are client-controlled and would allow limit bypass.
+   */
   const clientIp = (req: IncomingMessage) => {
     if (config.trustProxy) {
-      const fwd = req.headers['fly-client-ip'] ?? req.headers['x-forwarded-for'];
-      const v = Array.isArray(fwd) ? fwd[0] : fwd;
-      if (v) return v.split(',')[0]!.trim();
+      const fly = req.headers['fly-client-ip'];
+      if (typeof fly === 'string' && fly) return fly.trim();
+      const fwd = req.headers['x-forwarded-for'];
+      const v = Array.isArray(fwd) ? fwd.join(',') : fwd;
+      if (v) return v.split(',').at(-1)!.trim();
     }
     return req.socket.remoteAddress ?? 'unknown';
   };

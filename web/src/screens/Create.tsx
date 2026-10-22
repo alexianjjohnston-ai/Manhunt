@@ -205,7 +205,7 @@ export function CreateScreen() {
                 <p className="text-sm text-muted">
                   {settings.captureMethod === 'runner_confirm'
                     ? 'The hunter taps Capture, then the runner confirms on their own phone. Disputes go to the host.'
-                    : 'The host approves every capture. Use this if you have a dedicated referee.'}
+                    : 'The host approves every capture (a runner can still concede on their own phone). Use this if you have a dedicated referee.'}
                 </p>
               </div>
               <Card className="divide-y divide-line py-1">

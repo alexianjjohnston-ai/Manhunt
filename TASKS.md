@@ -2,7 +2,7 @@
 
 Legend: [x] done and tested · [~] partial / see notes · [ ] not done
 
-Test counts at last update: **70 unit/integration** (Vitest) and **14 e2e scenarios × 2 device profiles** (Playwright: iPhone 14, Pixel 7).
+Test counts at last update: **71 unit/integration** (Vitest) and **8 e2e scenarios × 2 device profiles = 16 runs** (Playwright: iPhone 14, Pixel 7).
 
 ## M1 Planning & scaffolding
 - [x] PLAN.md (stack evaluation, architecture, milestones, acceptance criteria)
@@ -78,6 +78,10 @@ Test counts at last update: **70 unit/integration** (Vitest) and **14 e2e scenar
 - GPS can be spoofed; anti-cheat signals are host-only hints.
 - Single-instance server by design (in-process timers). Horizontal scaling would need a shared store and a leader for ticks.
 - Map tiles depend on a third-party host (OpenFreeMap by default); there is an offline fallback.
+
+## Evaluated and deferred
+- **Team chat**: skipped for now. Players already have group chats, and in-app chat invites phone use while moving or driving.
+- **Web Push for pings**: deferred. iOS only supports push for installed PWAs, it needs VAPID key management, and push does not fix background GPS.
 
 ## Possible next steps
 - Team chat (quick messages), optional Web Push for pings (iOS requires an installed PWA)
