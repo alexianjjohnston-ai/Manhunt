@@ -13,6 +13,8 @@ export interface ServerConfig {
   gameRetentionHours: number;
   lobbyIdleHours: number;
   publicOrigin: string | null;
+  /** Multiplies REST rate-limit capacities (raise only for automated testing). */
+  rateLimitScale: number;
 }
 
 function bool(v: string | undefined, fallback: boolean): boolean {
@@ -40,5 +42,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
     gameRetentionHours: num(env.GAME_RETENTION_HOURS, 24),
     lobbyIdleHours: num(env.LOBBY_IDLE_HOURS, 12),
     publicOrigin: env.PUBLIC_ORIGIN ?? null,
+    rateLimitScale: Math.max(1, num(env.RATE_LIMIT_SCALE, 1)),
   };
 }

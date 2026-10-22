@@ -46,9 +46,10 @@ export function createApp(config: ServerConfig, opts: { now?: () => number; auto
 
   // Per-IP limits for the REST endpoints. Failed code lookups have their own stricter bucket
   // so join codes cannot be brute-forced.
-  const createLimiter = new RateLimiter(5, 5 / 600);
-  const joinLimiter = new RateLimiter(15, 15 / 60);
-  const missLimiter = new RateLimiter(20, 20 / 600);
+  const k = config.rateLimitScale;
+  const createLimiter = new RateLimiter(5 * k, (5 * k) / 600);
+  const joinLimiter = new RateLimiter(15 * k, (15 * k) / 60);
+  const missLimiter = new RateLimiter(20 * k, (20 * k) / 600);
 
   const clientIp = (req: IncomingMessage) => {
     if (config.trustProxy) {
