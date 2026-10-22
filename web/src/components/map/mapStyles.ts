@@ -29,9 +29,11 @@ export function styleFor(key: MapStyleKey): string | StyleSpecification {
   return key === 'daylight' ? LIGHT : DARK;
 }
 
-/** Used when the tile server is unreachable: a plain grid so markers & boundary still work. */
-export const FALLBACK_STYLE: StyleSpecification = {
-  version: 8,
-  sources: {},
-  layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#11161c' } }],
-};
+/** Used when the tile server is unreachable: a plain background so markers & boundary still work. */
+export function fallbackStyle(key: MapStyleKey): StyleSpecification {
+  return {
+    version: 8,
+    sources: {},
+    layers: [{ id: 'bg', type: 'background', paint: { 'background-color': key === 'daylight' ? '#dfe4ea' : '#11161c' } }],
+  };
+}

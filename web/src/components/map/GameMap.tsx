@@ -6,7 +6,7 @@ import { boundaryBounds, boundaryRing, destination } from '@shared/geo';
 import type { Boundary, LatLng, Team } from '@shared/types';
 import type { MapStyleKey } from '@/lib/prefs';
 import { cn } from '@/lib/utils';
-import { FALLBACK_STYLE, styleFor } from './mapStyles';
+import { fallbackStyle, styleFor } from './mapStyles';
 
 setWorkerUrl(workerUrl);
 
@@ -162,6 +162,9 @@ export const GameMap = forwardRef<GameMapHandle, Props>(function GameMap(
   const [failed, setFailed] = useState<string | null>(null);
   const [tilesDown, setTilesDown] = useState(false);
   const fittedOnce = useRef(false);
+  const styleState = useRef<{ loaded: boolean; timer: number | undefined; arm: () => void }>({ loaded: false, timer: undefined, arm: () => {} });
+  const styleKeyRef = useRef(styleKey);
+  styleKeyRef.current = styleKey;
   const latest = useRef({ self, boundary, onMapClick });
   latest.current = { self, boundary, onMapClick };
 
@@ -191,32 +194,38 @@ export const GameMap = forwardRef<GameMapHandle, Props>(function GameMap(
     }
     map.current = m;
     (window as unknown as { __manhuntMap?: MLMap }).__manhuntMap = m;
-    let styleLoaded = false;
-    const fallbackTimer = window.setTimeout(() => {
-      if (!styleLoaded) {
-        setTilesDown(true);
-        m.setStyle(FALLBACK_STYLE);
-      }
-    }, 9000);
+    // Style loading with a fallback: if the basemap cannot load (offline, blocked tile host),
+    // switch to a plain background so markers, boundary and accuracy circles still render.
+    const armFallback = () => {
+      styleState.current.loaded = false;
+      window.clearTimeout(styleState.current.timer);
+      styleState.current.timer = window.setTimeout(() => {
+        if (!styleState.current.loaded) useFallback();
+      }, 9000);
+    };
+    const useFallback = () => {
+      window.clearTimeout(styleState.current.timer);
+      styleState.current.loaded = true;
+      setTilesDown(true);
+      m.setStyle(fallbackStyle(styleKeyRef.current), { diff: false });
+    };
+    styleState.current.arm = armFallback;
+    armFallback();
     m.on('style.load', () => {
-      styleLoaded = true;
+      styleState.current.loaded = true;
+      window.clearTimeout(styleState.current.timer);
       ensureLayers(m);
       setReady((r) => r + 1);
     });
     m.on('error', (e) => {
-      const msg = String((e as unknown as { error?: { message?: string } }).error?.message ?? "");
-      if (!styleLoaded && /style|fetch|Failed|NetworkError|load/i.test(msg)) {
-        window.clearTimeout(fallbackTimer);
-        styleLoaded = true;
-        setTilesDown(true);
-        m.setStyle(FALLBACK_STYLE);
-      }
+      const msg = String((e as unknown as { error?: { message?: string } }).error?.message ?? '');
+      if (!styleState.current.loaded && /style|fetch|Failed|NetworkError|load/i.test(msg)) useFallback();
     });
     m.on('click', (e) => latest.current.onMapClick?.({ lat: e.lngLat.lat, lng: e.lngLat.lng }));
     const ro = new ResizeObserver(() => m.resize());
     ro.observe(container.current);
     return () => {
-      window.clearTimeout(fallbackTimer);
+      window.clearTimeout(styleState.current.timer);
       ro.disconnect();
       for (const mk of markers.current.values()) mk.remove();
       markers.current.clear();
@@ -236,7 +245,8 @@ export const GameMap = forwardRef<GameMapHandle, Props>(function GameMap(
     const m = map.current;
     if (!m) return;
     setTilesDown(false);
-    m.setStyle(styleFor(styleKey));
+    styleState.current.arm();
+    m.setStyle(styleFor(styleKey), { diff: false });
   }, [styleKey]);
 
   // --- data layers -----------------------------------------------------------
@@ -414,7 +424,7 @@ export const GameMap = forwardRef<GameMapHandle, Props>(function GameMap(
       {/* maplibre forces position:relative on its container, so size it explicitly */}
       <div ref={container} className="h-full w-full" data-testid="game-map" />
       {tilesDown && (
-        <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 rounded-full bg-black/60 px-2.5 py-0.5 text-[10px] text-white/80" style={{ bottom: bottomInset + 4 }}>
+        <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 rounded-full bg-black/60 px-2.5 py-0.5 text-[10px] whitespace-nowrap text-white/80" style={{ bottom: bottomInset + 4 }}>
           Map tiles offline · positions still accurate
         </div>
       )}

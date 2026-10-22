@@ -195,3 +195,66 @@ test('core screens fit a phone without horizontal scrolling', async ({ browser }
   const overflow = await p.page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(0);
 });
+
+async function startTwoPlayerGame(browser: Browser, info: TestInfo) {
+  const host = await newPlayer(browser, info);
+  const runner = await newPlayer(browser, info, { latitude: 51.5031, longitude: -0.1222 });
+  const { code } = await hostGame(host, { pingIntervalSec: 60 });
+  await joinViaUi(runner, code, 'Remy');
+  await assignTeam(host.page, 'Hostie', 'Hunters');
+  await assignTeam(host.page, 'Remy', 'Runners');
+  await runner.page.getByTestId('ready-button').click();
+  await host.page.getByTestId('start-button').click();
+  await expect(runner.page.getByTestId('ping-bar')).toBeVisible();
+  return { host, runner };
+}
+
+/** HoldButton also accepts Enter for keyboard / assistive-tech users. */
+async function hold(page: Page, name: RegExp) {
+  const b = page.getByRole('button', { name });
+  await b.focus();
+  await page.keyboard.press('Enter');
+}
+
+test('any player can trigger an emergency stop; sharing halts until the host resumes', async ({ browser }, info) => {
+  const { host, runner } = await startTwoPlayerGame(browser, info);
+  await runner.page.getByRole('button', { name: 'Menu' }).click();
+  await hold(runner.page, /Hold for emergency stop/);
+  for (const p of [host, runner]) await expect(p.page.getByRole('alert').filter({ hasText: 'Emergency stop' })).toBeVisible();
+  await expect(runner.page.getByText('Only the host can resume.')).toBeVisible();
+  const last = runner.frames.filter((f) => f.includes('"type":"state"')).at(-1)!;
+  expect(last).toContain('"shareLocation":false');
+  await hold(host.page, /Hold to resume game/);
+  await expect(runner.page.getByRole('alert').filter({ hasText: 'Emergency stop' })).toHaveCount(0);
+  await expect(runner.page.getByTestId('ping-bar')).toBeVisible();
+});
+
+test('a disputed capture goes to the host, who can reject it', async ({ browser }, info) => {
+  const { host, runner } = await startTwoPlayerGame(browser, info);
+  await host.page.getByTestId('capture-button').click();
+  await host.page.getByRole('button', { name: 'Remy Tagged' }).click();
+  await runner.page.getByRole('button', { name: /No, dispute it/ }).click();
+  await expect(host.page.getByText(/Remy disputed the capture/)).toBeVisible();
+  await host.page.getByRole('button', { name: 'Host dashboard' }).click();
+  await host.page.getByRole('radio', { name: /Captures/ }).click();
+  await host.page.getByRole('dialog').getByRole('button', { name: 'Reject' }).click();
+  await expect(host.page.getByText(/rejected the capture of Remy/).first()).toBeVisible();
+  await host.page.keyboard.press('Escape');
+  await expect(runner.page.getByText('RUNNER', { exact: false }).first()).toBeVisible();
+  await expect(runner.page.getByTestId('game-timer')).toBeVisible();
+});
+
+test('switching map styles keeps the play area and markers (even when tiles are offline)', async ({ browser }, info) => {
+  const { host } = await startTwoPlayerGame(browser, info);
+  const boundaryFeatures = () =>
+    host.page.evaluate(() => {
+      const m = (window as unknown as { __manhuntMap?: { getSource(id: string): { _data?: { geojson?: { features: unknown[] } } } | undefined } }).__manhuntMap;
+      return m?.getSource('mh-boundary')?._data?.geojson?.features.length ?? -1;
+    });
+  await expect.poll(boundaryFeatures, { timeout: 20_000 }).toBe(1);
+  for (let i = 0; i < 3; i++) {
+    await host.page.getByRole('button', { name: /Map style/ }).click();
+    await expect.poll(boundaryFeatures, { timeout: 20_000 }).toBe(1);
+  }
+  await expect(host.page.locator('.mh-self')).toBeVisible();
+});
