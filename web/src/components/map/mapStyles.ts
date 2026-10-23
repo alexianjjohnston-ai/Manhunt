@@ -14,6 +14,8 @@ const SATELLITE_ATTRIBUTION =
   import.meta.env.VITE_SATELLITE_ATTRIBUTION || 'Imagery © Esri, Maxar, Earthstar Geographics, and the GIS User Community';
 
 export function styleFor(key: MapStyleKey): string | StyleSpecification {
+  // The demo page cannot reach any tile server, so skip straight to the plain style.
+  if (__DEMO__) return fallbackStyle(key);
   if (key === 'satellite') {
     return {
       version: 8,

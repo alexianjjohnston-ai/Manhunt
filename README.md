@@ -151,6 +151,10 @@ The script:
 4. tags runners when bots get within 15 m (mixing confirm requests and tag codes); runners sometimes dispute, and the host bot decides;
 5. prints the event stream until the game ends.
 
+### Browser-only demo build
+
+`npm run build:demo` produces `dist/demo/demo.html`, a single self-contained page for playtesting without a server. It is also packaged as `dist/demo/artifact.html` for claude.ai hosting. The real game engine and projection run inside the page, behind a stand-in for the WebSocket and REST API (`web/src/demo/`). You play against bots with simulated GPS, steering yourself by tapping the map. It's a testing tool only: nothing is shared between devices, and reloading the page ends the game.
+
 ## Architecture
 
 The full plan is in [`PLAN.md`](PLAN.md) and progress is in [`TASKS.md`](TASKS.md).

@@ -4,7 +4,9 @@ import { useEffect, useState } from 'react';
 import { SAFETY_RULES } from '@/content';
 import { Toasts } from '@/components/Toasts';
 import { Button, Sheet, Spinner, Wordmark } from '@/components/ui';
+import { boundaryCenter } from '@shared/geo';
 import { useGame } from '@/lib/game';
+import { useLocation } from '@/lib/location';
 import { navigate } from '@/lib/router';
 import { sessions } from '@/lib/sessions';
 import { InGame } from './InGame';
@@ -27,6 +29,17 @@ export default function GameRoot({ gameId }: { gameId: string }) {
     return () => disconnect();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameId]);
+
+  // Demo build: browsers refuse real location inside the embedded page, so the player
+  // gets a simulated position (standing still until they tap the map).
+  const boundary = view?.game.boundary;
+  useEffect(() => {
+    if (!__DEMO__ || !view) return;
+    const loc = useLocation.getState();
+    if (loc.simulated) return;
+    loc.startSimulation(boundary ? boundaryCenter(boundary) : { lat: 51.5025, lng: -0.134 }, 1.6);
+    loc.setSimTarget(null);
+  }, [view, boundary]);
 
   useLocationSharing(view);
 

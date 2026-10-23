@@ -16,7 +16,7 @@ createRoot(document.getElementById('root')!).render(
 );
 
 // Service worker: caches the app shell only (never API / game data).
-if ('serviceWorker' in navigator && import.meta.env.PROD) {
+if ('serviceWorker' in navigator && import.meta.env.PROD && !__DEMO__) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').catch(() => {});
   });

@@ -15,7 +15,7 @@ import {
   Wifi,
   WifiOff,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { lazy, Suspense, useMemo, useState } from 'react';
 import { teamTargets } from '@shared/teams';
 import type { GameView, PlayerView } from '@shared/protocol';
 import type { Team } from '@shared/types';
@@ -28,6 +28,8 @@ import { navigate } from '@/lib/router';
 import { sessions } from '@/lib/sessions';
 import { cn, inviteUrl } from '@/lib/utils';
 import { HostSettingsSheet } from './HostSettingsSheet';
+
+const AddBotsButton = __DEMO__ ? lazy(() => import('@/demo/DemoPanels').then((m) => ({ default: m.AddBotsButton }))) : null;
 
 export function Lobby({ view }: { view: GameView }) {
   const send = useGame((s) => s.send);
@@ -162,6 +164,12 @@ export function Lobby({ view }: { view: GameView }) {
             {game.settings.lobbyLocked && <Pill tone="warn">Locked</Pill>}
           </div>
         </Card>
+
+        {AddBotsButton && me.isHost && (
+          <Suspense fallback={null}>
+            <AddBotsButton gameId={game.id} code={game.code} />
+          </Suspense>
+        )}
 
         <button type="button" onClick={() => setLeaveOpen(true)} className="mx-auto flex items-center gap-2 py-2 text-sm text-muted hover:text-danger">
           <LogOut className="size-4" /> Leave game

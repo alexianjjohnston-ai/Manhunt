@@ -9,6 +9,7 @@ export default defineConfig({
   root: 'web',
   publicDir: 'public',
   plugins: [react(), tailwindcss()],
+  define: { __DEMO__: 'false' },
   resolve: {
     alias: {
       '@shared': fileURLToPath(new URL('./shared', import.meta.url)),

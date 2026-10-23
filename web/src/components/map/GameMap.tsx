@@ -1,5 +1,5 @@
 import { LngLatBounds, Map as MLMap, Marker, setWorkerUrl, type GeoJSONSource } from 'maplibre-gl';
-import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
+import workerUrl from '@/map-worker';
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { formatAge } from '@shared/clock';
 import { boundaryBounds, boundaryRing, destination } from '@shared/geo';
@@ -161,7 +161,7 @@ export const GameMap = forwardRef<GameMapHandle, Props>(function GameMap(
   const markers = useRef(new Map<string, Marker>());
   const [ready, setReady] = useState(0);
   const [failed, setFailed] = useState<string | null>(null);
-  const [tilesDown, setTilesDown] = useState(false);
+  const [tilesDown, setTilesDown] = useState(__DEMO__);
   const fittedOnce = useRef(false);
   const styleState = useRef<{ loaded: boolean; timer: number | undefined; arm: () => void }>({ loaded: false, timer: undefined, arm: () => {} });
   const styleKeyRef = useRef(styleKey);
@@ -273,6 +273,9 @@ export const GameMap = forwardRef<GameMapHandle, Props>(function GameMap(
     }
     src('mh-acc')?.setData({ type: 'FeatureCollection', features: acc });
 
+    // Without basemap tiles, a 100 m grid gives a sense of distance.
+    src('mh-grid')?.setData({ type: 'FeatureCollection', features: tilesDown && boundary ? gridLines(boundary) : [] });
+
     src('mh-edit')?.setData({
       type: 'FeatureCollection',
       features: (editPoints ?? []).map((p, i) => ({
@@ -281,7 +284,7 @@ export const GameMap = forwardRef<GameMapHandle, Props>(function GameMap(
         geometry: { type: 'Point', coordinates: [p.lng, p.lat] },
       })),
     });
-  }, [ready, boundary, self, pings, mates, editPoints, showAccuracy]);
+  }, [ready, boundary, self, pings, mates, editPoints, showAccuracy, tilesDown]);
 
   // Fit to the boundary on first load.
   useEffect(() => {
@@ -427,12 +430,29 @@ export const GameMap = forwardRef<GameMapHandle, Props>(function GameMap(
       <div ref={container} className="h-full w-full" data-testid="game-map" />
       {tilesDown && (
         <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 rounded-full bg-black/60 px-2.5 py-0.5 text-[10px] whitespace-nowrap text-white/80" style={{ bottom: bottomInset + 4 }}>
-          Map tiles offline · positions still accurate
+          {__DEMO__ ? 'Demo map: no street tiles · grid squares are 100 m' : 'Map tiles offline · positions still accurate'}
         </div>
       )}
     </div>
   );
 });
+
+function gridLines(b: Boundary): GeoJSON.Feature[] {
+  const [[minLng, minLat], [maxLng, maxLat]] = boundaryBounds(b);
+  const pad = 0.012;
+  const stepLat = 100 / 111_320;
+  const stepLng = 100 / (111_320 * Math.cos((((minLat + maxLat) / 2) * Math.PI) / 180));
+  const out: GeoJSON.Feature[] = [];
+  const lat0 = Math.floor((minLat - pad) / stepLat) * stepLat;
+  const lng0 = Math.floor((minLng - pad) / stepLng) * stepLng;
+  for (let lat = lat0; lat <= maxLat + pad; lat += stepLat) {
+    out.push({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [[minLng - pad, lat], [maxLng + pad, lat]] } });
+  }
+  for (let lng = lng0; lng <= maxLng + pad; lng += stepLng) {
+    out.push({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [[lng, minLat - pad], [lng, maxLat + pad]] } });
+  }
+  return out;
+}
 
 function accFeature(p: LatLng, r: number, color: string): GeoJSON.Feature {
   return { type: 'Feature', properties: { color }, geometry: { type: 'Polygon', coordinates: [circleRing(p, r)] } };
@@ -440,8 +460,11 @@ function accFeature(p: LatLng, r: number, color: string): GeoJSON.Feature {
 
 function ensureLayers(m: MLMap) {
   const empty: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] };
-  for (const id of ['mh-mask', 'mh-boundary', 'mh-acc', 'mh-edit']) {
+  for (const id of ['mh-grid', 'mh-mask', 'mh-boundary', 'mh-acc', 'mh-edit']) {
     if (!m.getSource(id)) m.addSource(id, { type: 'geojson', data: empty });
+  }
+  if (!m.getLayer('mh-grid')) {
+    m.addLayer({ id: 'mh-grid', type: 'line', source: 'mh-grid', paint: { 'line-color': '#8be3ff', 'line-opacity': 0.08, 'line-width': 1 } });
   }
   if (!m.getLayer('mh-mask')) {
     m.addLayer({ id: 'mh-mask', type: 'fill', source: 'mh-mask', paint: { 'fill-color': '#05070a', 'fill-opacity': 0.5 } });

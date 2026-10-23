@@ -9,10 +9,20 @@ function notify() {
 
 window.addEventListener('popstate', notify);
 
+// The demo runs inside an embedded frame where URL routes don't apply, so it keeps the
+// current path in memory instead of the address bar.
+let memoryPath = '/';
+const currentPath = () => (__DEMO__ ? memoryPath : location.pathname);
+
 export function navigate(to: string, opts: { replace?: boolean } = {}) {
-  if (to === location.pathname + location.search) return;
-  if (opts.replace) history.replaceState(null, '', to);
-  else history.pushState(null, '', to);
+  if (__DEMO__) {
+    if (to === memoryPath) return;
+    memoryPath = to;
+  } else {
+    if (to === location.pathname + location.search) return;
+    if (opts.replace) history.replaceState(null, '', to);
+    else history.pushState(null, '', to);
+  }
   window.scrollTo(0, 0);
   notify();
 }
@@ -23,7 +33,7 @@ export function usePath(): string {
       listeners.add(cb);
       return () => listeners.delete(cb);
     },
-    () => location.pathname,
+    currentPath,
   );
 }
 

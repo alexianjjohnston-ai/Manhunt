@@ -368,7 +368,10 @@ export function Sheet({
   useEffect(() => {
     if (!open) return;
     const prev = document.activeElement as HTMLElement | null;
-    const t = window.setTimeout(() => panel.current?.focus({ preventScroll: true }), 50);
+    const t = window.setTimeout(() => {
+      // Don't steal focus from something the user already moved to inside the sheet.
+      if (panel.current && !panel.current.contains(document.activeElement)) panel.current.focus({ preventScroll: true });
+    }, 50);
     return () => {
       window.clearTimeout(t);
       prev?.focus?.({ preventScroll: true });
