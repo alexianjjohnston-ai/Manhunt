@@ -61,6 +61,11 @@ export const settingsSchema = z.object({
   hunterTeammatesVisible: z.boolean(),
   runnerTeammatesVisible: z.boolean(),
   lobbyLocked: z.boolean(),
+  // Newer rules are optional so older clients/bots keep working; the engine fills defaults.
+  mode: z.enum(['classic', 'infection']).optional(),
+  cloaksPerRunner: z.number().int().min(0).max(LIMITS.cloaksMax).optional(),
+  sweepsPerGame: z.number().int().min(0).max(LIMITS.sweepsMax).optional(),
+  finalPhaseMin: z.number().int().min(0).max(LIMITS.finalPhaseMinMax).optional(),
 });
 
 export const joinCodeSchema = z
@@ -108,6 +113,8 @@ export const clientMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('captureRespond'), captureId: id, accept: z.boolean() }),
   z.object({ type: z.literal('captureByCode'), code: z.string().regex(/^\d{4}$/) }),
   z.object({ type: z.literal('leave') }),
+  z.object({ type: z.literal('useCloak') }),
+  z.object({ type: z.literal('radarSweep') }),
   z.object({ type: z.literal('emergencyStop') }),
   // ---- host only ----
   z.object({ type: z.literal('host.updateSettings'), settings: settingsSchema.partial(), boundary: boundarySchema.nullable().optional() }),
@@ -128,7 +135,7 @@ export const clientMessageSchema = z.discriminatedUnion('type', [
       .transform((s) => s.replace(/[\p{C}]/gu, '').trim())
       .pipe(z.string().min(1).max(LIMITS.announcementMax)),
   }),
-  z.object({ type: z.literal('host.rematch') }),
+  z.object({ type: z.literal('host.rematch'), swapTeams: z.boolean().optional() }),
 ]);
 
 export type ClientMessage = z.infer<typeof clientMessageSchema>;
@@ -142,6 +149,8 @@ export interface PlayerView {
   id: string;
   name: string;
   team: Team | null;
+  /** Team at the start of the game (differs from `team` for runners converted in infection mode). */
+  startTeam: Team | null;
   status: PlayerStatus;
   isHost: boolean;
   ready: boolean;
@@ -199,6 +208,8 @@ export interface GameView {
     lastPingElapsed: number | null;
     nextPingElapsed: number | null;
     pingCount: number;
+    /** Radar sweeps the hunter team has left. */
+    sweepsLeft: number;
     paused: boolean;
     emergency: { byId: string; at: number } | null;
     winner: Winner | null;
@@ -222,6 +233,9 @@ export interface GameView {
     shareLocation: boolean;
     /** Secret tag code (active runners only, when enabled). */
     tagCode?: string;
+    /** Runner cloaks remaining, and whether one is armed for the next ping. */
+    cloaksLeft: number;
+    cloakArmed: boolean;
     /** Server time of the latest fix the server holds for me (so players know their ping will land). */
     lastFixAt: number | null;
   };

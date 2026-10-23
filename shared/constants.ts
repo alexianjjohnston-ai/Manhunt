@@ -22,6 +22,9 @@ export const LIMITS = {
   circleRadiusMax: 25_000,
   polygonPointsMax: 60,
   announcementMax: 140,
+  cloaksMax: 3,
+  sweepsMax: 3,
+  finalPhaseMinMax: 60,
 } as const;
 
 export const DEFAULT_SETTINGS: GameSettings = {
@@ -39,6 +42,10 @@ export const DEFAULT_SETTINGS: GameSettings = {
   hunterTeammatesVisible: true,
   runnerTeammatesVisible: true,
   lobbyLocked: false,
+  mode: 'classic',
+  cloaksPerRunner: 1,
+  sweepsPerGame: 1,
+  finalPhaseMin: 10,
 };
 
 export const JOIN_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';

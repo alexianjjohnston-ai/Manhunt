@@ -26,6 +26,10 @@ export interface PlayerState {
   capturedBy?: string | null;
   tagCode: string;
   gps: GpsState;
+  /** Team when the game started (set at start; used for win rules in infection mode). */
+  startTeam?: Team | null;
+  cloaksLeft?: number;
+  cloakArmed?: boolean;
 }
 
 export interface GameState {
@@ -54,6 +58,8 @@ export interface GameState {
   winner: Winner | null;
   endReason: string | null;
   locationsPurged: boolean;
+  sweepsLeft?: number;
+  finalPhaseAnnounced?: boolean;
 }
 
 /** In-memory only: the latest GPS fix per player. Overwritten on every update, never persisted. */

@@ -43,6 +43,7 @@ export function project(g: GameState, viewerId: string, ctx: ProjectionContext):
         id: p.id,
         name: p.name,
         team: p.team,
+        startTeam: p.startTeam ?? null,
         status: p.status,
         isHost: p.id === g.hostId,
         ready: p.ready,
@@ -137,6 +138,7 @@ export function project(g: GameState, viewerId: string, ctx: ProjectionContext):
       lastPingElapsed: g.lastPingElapsed,
       nextPingElapsed: g.nextPingElapsed,
       pingCount: g.reveals.length,
+      sweepsLeft: g.sweepsLeft ?? 0,
       paused: g.clock.pausedAt != null,
       emergency: g.emergency,
       winner: g.winner,
@@ -157,6 +159,8 @@ export function project(g: GameState, viewerId: string, ctx: ProjectionContext):
       safetyAck: me.safetyAck,
       shareLocation,
       tagCode: running && me.team === 'runner' && me.status === 'active' && g.settings.tagCodeEnabled ? me.tagCode : undefined,
+      cloaksLeft: me.team === 'runner' ? (me.cloaksLeft ?? 0) : 0,
+      cloakArmed: me.team === 'runner' && !!me.cloakArmed,
       lastFixAt: ctx.fixes.get(me.id)?.fixAt ?? null,
     },
     players,
@@ -174,10 +178,11 @@ export function canSeeEvent(e: GameEvent, me: PlayerState, isHost: boolean): boo
       return true;
     case 'host':
       return isHost;
+    // Team-only events reach the host only when the host is not playing for the other team.
     case 'hunter':
-      return me.team === 'hunter' || isHost;
+      return me.team === 'hunter' || (isHost && me.team !== 'runner');
     case 'runner':
-      return me.team === 'runner' || isHost;
+      return me.team === 'runner' || (isHost && me.team !== 'hunter');
   }
 }
 
@@ -196,7 +201,7 @@ export function buildRunnerMarkers(reveals: RevealSnapshot[], visible: Set<strin
         status: e.status,
         reason: e.reason,
       };
-      if (e.status !== 'missed' && e.lat != null && e.lng != null) {
+      if ((e.status === 'ok' || e.status === 'stale') && e.lat != null && e.lng != null) {
         marker.lat = e.lat;
         marker.lng = e.lng;
         marker.accuracyM = e.accuracyM;

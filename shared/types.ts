@@ -7,6 +7,8 @@ export type Phase = 'lobby' | 'headstart' | 'hunting' | 'ended';
 export type CaptureMethod = 'runner_confirm' | 'host_confirm';
 export type TeamAssignment = 'auto' | 'manual';
 export type Winner = 'runners' | 'hunters' | 'none';
+/** classic: caught runners are out. infection: caught runners switch to the hunters. */
+export type GameMode = 'classic' | 'infection';
 export type GpsState = 'ok' | 'denied' | 'unavailable' | 'off' | 'unknown';
 
 export interface LatLng {
@@ -36,6 +38,13 @@ export interface GameSettings {
   hunterTeammatesVisible: boolean;
   runnerTeammatesVisible: boolean;
   lobbyLocked: boolean;
+  mode: GameMode;
+  /** Each runner may hide from this many pings (hunters see "cloaked", never a fake position). */
+  cloaksPerRunner: number;
+  /** Extra on-demand pings the hunter team can fire during the game. */
+  sweepsPerGame: number;
+  /** During the last N minutes pings come twice as often (0 = off). */
+  finalPhaseMin: number;
 }
 
 export interface ClockState {
@@ -45,7 +54,7 @@ export interface ClockState {
   endedAt: number | null;
 }
 
-export type PingStatus = 'ok' | 'stale' | 'missed';
+export type PingStatus = 'ok' | 'stale' | 'missed' | 'cloaked';
 
 export interface RevealEntry {
   playerId: string;
@@ -65,6 +74,8 @@ export interface RevealSnapshot {
   revealedAt: number;
   elapsedMs: number;
   entries: RevealEntry[];
+  /** 'sweep' = an extra ping triggered by the hunters' radar sweep. */
+  kind?: 'scheduled' | 'sweep';
   /** True once coordinates have been removed by the retention policy. */
   purged?: boolean;
 }
@@ -104,6 +115,9 @@ export type GameEventType =
   | 'capture_rejected'
   | 'runner_captured'
   | 'runner_released'
+  | 'radar_sweep'
+  | 'final_phase'
+  | 'cloak_used'
   | 'game_paused'
   | 'game_resumed'
   | 'emergency_stop'

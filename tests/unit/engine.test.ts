@@ -180,7 +180,7 @@ describe('host permissions', () => {
 
 describe('server-authoritative timers and pings', () => {
   it('reveals every 5 minutes after the head start, simultaneously for all runners', () => {
-    const { h, game, ids } = startedGame();
+    const { h, game, ids } = startedGame({ finalPhaseMin: 0 });
     const reveals: number[] = [];
     run(h, 61 * MIN, () => {
       locate(h, game, ids.R1!, BASE.lat + 0.001, BASE.lng);

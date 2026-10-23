@@ -113,6 +113,7 @@ export class GameEngine {
     this.emergencyLimiter = new RateLimiter(1, 1 / 120, () => this.now());
     this.captureLimiter = new RateLimiter(3, 1 / 15, () => this.now());
     for (const g of store.loadAll(this.now())) {
+      g.settings = { ...DEFAULT_SETTINGS, ...g.settings };
       this.games.set(g.id, g);
       this.byCode.set(g.code, g.id);
     }
@@ -204,7 +205,7 @@ export class GameEngine {
 
   createGame(raw: unknown): { game: GameState; player: PlayerState; token: string } {
     const body = parse(createGameBody, raw);
-    const settings: GameSettings = { ...DEFAULT_SETTINGS, ...body.settings };
+    const settings = withDefaults(body.settings);
     this.validateSettings(settings);
     const t = this.now();
     let code = newJoinCode();
@@ -398,6 +399,10 @@ export class GameEngine {
         return this.captureCancel(g, me, msg.captureId);
       case 'captureRespond':
         return this.captureRespond(g, me, msg.captureId, msg.accept);
+      case 'useCloak':
+        return this.useCloak(g, me);
+      case 'radarSweep':
+        return this.radarSweep(g, me);
       case 'captureByCode':
         return this.captureByCode(g, me, msg.code);
       case 'leave':
@@ -432,7 +437,7 @@ export class GameEngine {
         this.commit(g);
         return;
       case 'host.rematch':
-        return this.rematch(g);
+        return this.rematch(g, !!msg.swapTeams);
     }
   }
 
@@ -467,6 +472,7 @@ export class GameEngine {
       'tagCodeEnabled',
       'lobbyLocked',
       'allowSpectators',
+      'finalPhaseMin',
     ];
     if (running) {
       for (const k of Object.keys(patch) as (keyof GameSettings)[]) {
@@ -475,7 +481,7 @@ export class GameEngine {
         }
       }
     }
-    const next = parse(settingsSchema, { ...g.settings, ...patch });
+    const next = withDefaults(parse(settingsSchema, { ...g.settings, ...patch }));
     this.validateSettings(next);
     if (!running && next.maxPlayers < this.competitors(g).length) {
       throw new GameError('invalid_settings', 'Max players is below the current player count');
@@ -585,7 +591,14 @@ export class GameEngine {
     if (g.nextPingElapsed >= durationMs(g.settings)) g.nextPingElapsed = null;
     g.pingRequestedFor = null;
     g.headstartAnnounced = g.settings.headStartMin === 0;
-    for (const p of g.players) p.ready = false;
+    g.sweepsLeft = g.settings.sweepsPerGame;
+    g.finalPhaseAnnounced = g.settings.finalPhaseMin === 0;
+    for (const p of g.players) {
+      p.ready = false;
+      p.startTeam = p.team;
+      p.cloaksLeft = p.team === 'runner' ? g.settings.cloaksPerRunner : 0;
+      p.cloakArmed = false;
+    }
     const hs = g.settings.headStartMin;
     this.emit(
       g,
@@ -673,11 +686,17 @@ export class GameEngine {
     this.commit(g);
   }
 
-  private rematch(g: GameState) {
+  private rematch(g: GameState, swapTeams: boolean) {
     if (g.status !== 'ended') throw new GameError('wrong_state', 'The game has not ended yet');
     g.players = g.players.filter((p) => p.status !== 'left' && p.status !== 'kicked');
     const taken = new Set<string>();
     for (const p of g.players) {
+      // Back to the teams players started with (infection converts runners), optionally swapped.
+      const base = p.startTeam ?? p.team;
+      p.team = swapTeams && (base === 'runner' || base === 'hunter') ? (base === 'runner' ? 'hunter' : 'runner') : base;
+      p.startTeam = undefined;
+      p.cloaksLeft = 0;
+      p.cloakArmed = false;
       p.status = 'active';
       p.ready = false;
       p.capturedAt = undefined;
@@ -699,7 +718,7 @@ export class GameEngine {
     g.endReason = null;
     g.locationsPurged = false;
     this.fixes.delete(g.id);
-    this.emit(g, 'teams_changed', 'Rematch! Back to the lobby.', 'all');
+    this.emit(g, 'teams_changed', swapTeams ? 'Rematch with teams swapped! Back to the lobby.' : 'Rematch! Back to the lobby.', 'all');
     this.commit(g);
   }
 
@@ -952,9 +971,9 @@ export class GameEngine {
   private setCaptured(g: GameState, me: PlayerState, playerId: string, captured: boolean) {
     this.requireRunning(g);
     const p = this.player(g, playerId);
-    if (p.team !== 'runner') throw new GameError('invalid', 'Only runners can be captured');
+    if ((p.startTeam ?? p.team) !== 'runner') throw new GameError('invalid', 'Only runners can be captured');
     if (captured) {
-      if (p.status !== 'active') throw new GameError('invalid', 'That runner is not in play');
+      if (p.status !== 'active' || p.team !== 'runner') throw new GameError('invalid', 'That runner is not in play');
       const t = this.now();
       const c: CaptureRecord = {
         id: newId(8),
@@ -968,8 +987,10 @@ export class GameEngine {
       g.captures.push(c);
       this.confirmCapture(g, c, me.id);
     } else {
-      if (p.status !== 'captured') throw new GameError('invalid', 'That runner is not captured');
+      const converted = p.team === 'hunter' && p.startTeam === 'runner';
+      if (p.status !== 'captured' && !converted) throw new GameError('invalid', 'That runner is not captured');
       p.status = 'active';
+      p.team = 'runner';
       p.capturedAt = undefined;
       p.capturedBy = undefined;
       for (const c of g.captures) if (c.runnerId === p.id && c.status === 'confirmed') c.status = 'rejected';
@@ -990,9 +1011,17 @@ export class GameEngine {
     c.status = 'confirmed';
     c.resolvedAt = t;
     c.resolvedBy = resolvedBy;
-    runner.status = 'captured';
+    const infect = g.settings.mode === 'infection';
     runner.capturedAt = t;
     runner.capturedBy = c.hunterId;
+    runner.cloakArmed = false;
+    if (infect) {
+      // Infection: the caught runner keeps playing as a hunter.
+      runner.team = 'hunter';
+      runner.status = 'active';
+    } else {
+      runner.status = 'captured';
+    }
     // Cancel any other open requests for the same runner.
     for (const o of g.captures) {
       if (o !== c && o.runnerId === runner.id && (o.status === 'pending' || o.status === 'disputed')) {
@@ -1000,12 +1029,14 @@ export class GameEngine {
         o.resolvedAt = t;
       }
     }
-    // Captured runners stop being tracked immediately.
+    // Their runner fix is dropped immediately. In classic mode they stop sharing; in
+    // infection mode they start sharing again as a hunter (only hunters can see that).
     this.fixesFor(g.id).delete(runner.id);
-    this.hooks.send(g.id, runner.id, { type: 'stopSharing', reason: 'You were captured' });
+    if (!infect) this.hooks.send(g.id, runner.id, { type: 'stopSharing', reason: 'You were captured' });
     const hunter = g.players.find((p) => p.id === c.hunterId);
     const how = c.method === 'tag_code' ? ' with their tag code' : c.method === 'host' ? ' (confirmed by host)' : '';
-    this.emit(g, 'runner_captured', `${runner.name} was captured${hunter ? ` by ${hunter.name}` : ''}${how}`, 'all', {
+    const tail = infect ? ' and joins the hunters!' : '';
+    this.emit(g, 'runner_captured', `${runner.name} was captured${hunter ? ` by ${hunter.name}` : ''}${how}${tail}`, 'all', {
       actorId: hunter?.id,
       targetId: runner.id,
     });
@@ -1016,7 +1047,12 @@ export class GameEngine {
   private checkWin(g: GameState): boolean {
     if (g.status !== 'running') return false;
     const comps = this.present(g).filter((p) => p.team === 'runner' || p.team === 'hunter');
-    const allRunners = g.players.filter((p) => p.team === 'runner' && p.status !== 'kicked');
+    // Judge by starting teams: a runner converted to a hunter (infection) counts as caught.
+    const asRunners = g.players.map((p) => {
+      const converted = p.startTeam === 'runner' && p.team === 'hunter';
+      return { team: converted ? ('runner' as const) : p.team, status: converted ? ('captured' as const) : p.status };
+    });
+    const allRunners = asRunners.filter((p) => p.team === 'runner' && p.status !== 'kicked');
     if (allRunners.length === 0) {
       this.end(g, 'none', 'No runners remain in the game');
       return true;
@@ -1026,7 +1062,7 @@ export class GameEngine {
       return true;
     }
     const timeUp = elapsedMs(g.clock, this.now()) >= durationMs(g.settings);
-    const w = evaluateWinner(g.players, timeUp);
+    const w = evaluateWinner(asRunners, timeUp);
     if (w === 'hunters') {
       this.end(g, 'hunters', timeUp ? 'Time is up and no runners are free' : 'Every runner has been captured');
       return true;
@@ -1044,7 +1080,7 @@ export class GameEngine {
   // -------------------------------------------------------------------------
 
   /** Snapshot every active runner's latest consented fix and reveal to hunters simultaneously. */
-  reveal(g: GameState, scheduledElapsed: number) {
+  reveal(g: GameState, scheduledElapsed: number, kind: 'scheduled' | 'sweep' = 'scheduled') {
     const t = this.now();
     const fresh = freshThresholdMs(g.settings);
     const stale = Math.max(pingIntervalMs(g.settings), fresh);
@@ -1052,6 +1088,12 @@ export class GameEngine {
     const entries: RevealEntry[] = [];
     for (const p of g.players) {
       if (p.team !== 'runner' || p.status !== 'active') continue;
+      if (p.cloakArmed) {
+        // A cloak hides the runner from this one reveal. Hunters are told, never misled.
+        p.cloakArmed = false;
+        entries.push({ playerId: p.id, status: 'cloaked', reason: 'Used a cloak' });
+        continue;
+      }
       const f = fixes.get(p.id);
       if (!f) {
         const reason =
@@ -1080,16 +1122,15 @@ export class GameEngine {
       });
     }
     const seq = g.reveals.length + 1;
-    g.reveals.push({ seq, revealedAt: t, elapsedMs: scheduledElapsed, entries });
-    g.lastPingElapsed = scheduledElapsed;
-    const ok = entries.filter((e) => e.status !== 'missed').length;
-    const missed = entries.length - ok;
-    this.emit(
-      g,
-      'ping_revealed',
-      `Ping #${seq}: ${ok} runner${ok === 1 ? '' : 's'} revealed${missed ? `, ${missed} missed` : ''}`,
-      'all',
-    );
+    g.reveals.push({ seq, revealedAt: t, elapsedMs: scheduledElapsed, entries, kind });
+    if (kind === 'scheduled') g.lastPingElapsed = scheduledElapsed;
+    const ok = entries.filter((e) => e.status === 'ok' || e.status === 'stale').length;
+    const cloaked = entries.filter((e) => e.status === 'cloaked').length;
+    const missed = entries.length - ok - cloaked;
+    const parts = [`${ok} runner${ok === 1 ? '' : 's'} revealed`];
+    if (cloaked) parts.push(`${cloaked} cloaked`);
+    if (missed) parts.push(`${missed} missed`);
+    this.emit(g, 'ping_revealed', `${kind === 'sweep' ? 'Radar sweep' : 'Ping'} #${seq}: ${parts.join(', ')}`, 'all');
   }
 
   // -------------------------------------------------------------------------
@@ -1160,6 +1201,22 @@ export class GameEngine {
       dirty = true;
     }
 
+    // Final phase: pings come twice as often for the last N minutes.
+    const finalStart = this.finalPhaseStart(g);
+    if (!g.finalPhaseAnnounced && finalStart != null && el >= finalStart) {
+      g.finalPhaseAnnounced = true;
+      const fast = this.intervalAt(g, el);
+      if (g.nextPingElapsed != null) {
+        const pulled = Math.max((g.lastPingElapsed ?? el) + fast, el + pingWarningMs(g.settings));
+        if (pulled < g.nextPingElapsed) {
+          g.nextPingElapsed = pulled < dur ? pulled : null;
+          g.pingRequestedFor = null;
+        }
+      }
+      this.emit(g, 'final_phase', `Final ${g.settings.finalPhaseMin} minutes! Pings now every ${fmtInterval(fast)}.`, 'all');
+      dirty = true;
+    }
+
     if (g.nextPingElapsed != null && el < dur) {
       if (el >= g.nextPingElapsed - pingWarningMs(g.settings) && g.pingRequestedFor !== g.nextPingElapsed && el < g.nextPingElapsed) {
         g.pingRequestedFor = g.nextPingElapsed;
@@ -1174,8 +1231,8 @@ export class GameEngine {
         const scheduled = g.nextPingElapsed;
         this.reveal(g, scheduled);
         // Skip any slots missed while the server was offline instead of bursting.
-        let n = nextPingAfter(scheduled, g.settings);
-        while (n <= el) n += pingIntervalMs(g.settings);
+        let n = scheduled + this.intervalAt(g, scheduled);
+        while (n <= el) n += this.intervalAt(g, n);
         g.nextPingElapsed = n < dur ? n : null;
         dirty = true;
       }
@@ -1186,6 +1243,47 @@ export class GameEngine {
       return;
     }
     if (dirty) this.commit(g);
+  }
+
+  /** Elapsed time at which the final phase begins, or null if disabled. */
+  private finalPhaseStart(g: GameState): number | null {
+    if (!g.settings.finalPhaseMin) return null;
+    return Math.max(0, durationMs(g.settings) - g.settings.finalPhaseMin * 60_000);
+  }
+
+  /** Ping interval in effect at a given elapsed time (halved during the final phase). */
+  intervalAt(g: GameState, el: number): number {
+    const base = pingIntervalMs(g.settings);
+    const start = this.finalPhaseStart(g);
+    if (start == null || el < start) return base;
+    const floor = (this.config.allowFastPings ? LIMITS.pingIntervalSecMin : LIMITS.pingIntervalSecProdMin) * 1000;
+    return Math.max(floor, Math.min(base, Math.round(base / 2)));
+  }
+
+  private useCloak(g: GameState, me: PlayerState) {
+    this.requireRunning(g);
+    if (me.team !== 'runner' || me.status !== 'active') throw new GameError('forbidden', 'Only runners still in play can use a cloak', 403);
+    if (me.cloakArmed) throw new GameError('duplicate', 'Your cloak is already active for the next ping');
+    if (!me.cloaksLeft) throw new GameError('none_left', 'You have no cloaks left');
+    me.cloaksLeft -= 1;
+    me.cloakArmed = true;
+    // The runner team hears about it; hunters only find out at the ping.
+    this.emit(g, 'cloak_used', `${me.name} activated a cloak for the next ping`, 'runner', { actorId: me.id });
+    this.commit(g);
+  }
+
+  private radarSweep(g: GameState, me: PlayerState) {
+    this.requireHuntingPhase(g);
+    if (me.team !== 'hunter' || me.status !== 'active') throw new GameError('forbidden', 'Only hunters can use a radar sweep', 403);
+    if (!g.sweepsLeft) throw new GameError('none_left', 'Your team has no radar sweeps left');
+    const el = elapsedMs(g.clock, this.now());
+    if (g.nextPingElapsed != null && g.nextPingElapsed - el < 45_000) {
+      throw new GameError('too_soon', `A ping is due in ${Math.ceil((g.nextPingElapsed - el) / 1000)}s. Save the sweep for later.`);
+    }
+    g.sweepsLeft -= 1;
+    this.emit(g, 'radar_sweep', `${me.name} fired a radar sweep! Every runner is revealed now.`, 'all', { actorId: me.id });
+    this.reveal(g, el, 'sweep');
+    this.commit(g);
   }
 
   private anyConnected(g: GameState) {
@@ -1210,6 +1308,16 @@ export class GameEngine {
     this.store.delete(g.id);
     for (const p of g.players) this.hooks.disconnect(g.id, p.id);
   }
+}
+
+/** Fill in rules added after a client or saved game was created. */
+function withDefaults(s: Partial<GameSettings>): GameSettings {
+  return { ...DEFAULT_SETTINGS, ...Object.fromEntries(Object.entries(s).filter(([, v]) => v !== undefined)) } as GameSettings;
+}
+
+function fmtInterval(ms: number) {
+  const s = Math.round(ms / 1000);
+  return s % 60 === 0 ? `${s / 60} min` : s > 60 ? `${Math.floor(s / 60)}m ${s % 60}s` : `${s}s`;
 }
 
 function round6(n: number) {
