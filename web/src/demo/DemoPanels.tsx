@@ -82,7 +82,7 @@ export function QuickDemoSheet({ open, onClose }: { open: boolean; onClose: () =
           <span className="label">Runner head start</span>
           <Segmented value={headStart} onChange={setHeadStart} options={[{ value: 0, label: 'None' }, { value: 1, label: '1 min' }, { value: 2, label: '2 min' }]} />
         </div>
-        {error && <p className="text-sm text-danger">{error}</p>}
+        {error && <p className="text-sm text-danger-ink">{error}</p>}
         <Button variant="primary" size="lg" block loading={busy} onClick={start}>
           <Play className="size-5" /> Set up demo lobby
         </Button>

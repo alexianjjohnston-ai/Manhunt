@@ -21,6 +21,8 @@
   --color-faint: var(--mh-faint);
 
   --color-signal: var(--mh-signal);
+  --color-signal-ink: var(--mh-signal-text);
+  --color-danger-ink: var(--mh-danger-text);
   --color-signal-fg: var(--mh-signal-fg);
   --color-ice: var(--mh-ice);
   --color-runner: var(--mh-runner);
@@ -69,16 +71,19 @@
   --mh-line-strong: rgb(148 163 184 / 0.28);
   --mh-fg: #f1f5f9;
   --mh-muted: #9aa7b6;
-  --mh-faint: #64748b;
-  --mh-signal: #ff4b2b;
+  --mh-faint: #8392a5;
+  /* Fills that carry white text (>= 4.5:1), and brighter variants for text on dark. */
+  --mh-signal: #dc3517;
+  --mh-signal-text: #ff7a5f;
   --mh-signal-fg: #ffffff;
   --mh-ice: #8be3ff;
   --mh-runner: #38d7f5;
   --mh-hunter: #ffa21f;
   --mh-ok: #4ade80;
   --mh-warn: #fbbf24;
-  --mh-danger: #ff3b5c;
-  --mh-glass: rgb(12 15 20 / 0.78);
+  --mh-danger: #d61f45;
+  --mh-danger-text: #ff6b84;
+  --mh-glass: rgb(12 15 20 / 0.86);
   --mh-shadow: 0 10px 30px -10px rgb(0 0 0 / 0.7);
   color-scheme: dark;
 }
@@ -94,17 +99,28 @@
   --mh-fg: #05080c;
   --mh-muted: #334155;
   --mh-faint: #475569;
-  --mh-signal: #d42a0c;
+  --mh-signal: #c42a0d;
+  --mh-signal-text: #b3240a;
   --mh-signal-fg: #ffffff;
-  --mh-ice: #0369a1;
-  --mh-runner: #0077a8;
-  --mh-hunter: #b45309;
-  --mh-ok: #15803d;
-  --mh-warn: #a16207;
+  --mh-ice: #035e8c;
+  --mh-runner: #00618a;
+  --mh-hunter: #8f4006;
+  --mh-ok: #11692f;
+  --mh-warn: #8a5300;
   --mh-danger: #be123c;
+  --mh-danger-text: #be123c;
   --mh-glass: rgb(255 255 255 / 0.92);
   --mh-shadow: 0 8px 24px -8px rgb(15 23 42 / 0.35);
   color-scheme: light;
+}
+
+/* Unlayered on purpose: wins over host page resets (e.g. an embedding page's body font). */
+html,
+body {
+  background: var(--mh-bg);
+  color: var(--mh-fg);
+  font-family: var(--font-sans);
+  font-size: 16px;
 }
 
 @layer base {
@@ -240,8 +256,11 @@
   color: #031018;
 }
 .mh-mate-runner {
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
+}
+.mh-mate-runner > span {
+  font-size: 10px;
 }
 .mh-runner-ping.is-stale {
   background: repeating-linear-gradient(135deg, var(--mh-runner) 0 5px, #6fb6c6 5px 9px);
@@ -264,8 +283,8 @@
   height: 26px;
   border-radius: 999px;
   background: #0b0e12;
-  border: 2px solid var(--mh-signal);
-  color: var(--mh-signal);
+  border: 2px solid var(--mh-signal-text);
+  color: var(--mh-signal-text);
   display: grid;
   place-items: center;
   font: 800 14px/1 var(--font-display);

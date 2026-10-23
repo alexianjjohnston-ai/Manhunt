@@ -112,6 +112,17 @@ function markerEl(kind: string, glyph: string, label?: string, sub?: string): HT
   }
   el.appendChild(body);
   if (label) {
+    // Labels can be hidden when they would overlap; tapping the marker shows it for a while.
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      el.dataset.pinned = String(Date.now() + 5000);
+      const lbl = el.querySelector<HTMLElement>('.mh-label');
+      if (lbl) lbl.style.visibility = 'visible';
+      el.style.zIndex = '20';
+      window.setTimeout(() => {
+        el.style.zIndex = el.dataset.z ?? '0';
+      }, 5000);
+    });
     const l = document.createElement('div');
     l.className = 'mh-label';
     l.append(document.createTextNode(label));
@@ -131,8 +142,10 @@ function setLabel(el: HTMLElement, label: string, sub: string) {
   if (small && small.textContent !== sub) small.textContent = sub;
 }
 
+/** Two letters, so players who share an initial stay distinguishable on the map. */
 function initials(name: string) {
-  return name.trim().slice(0, 1).toUpperCase() || '?';
+  const t = name.trim();
+  return t ? t[0]!.toUpperCase() + (t[1] ?? '').toLowerCase() : '?';
 }
 
 export const GameMap = forwardRef<GameMapHandle, Props>(function GameMap(
@@ -164,6 +177,7 @@ export const GameMap = forwardRef<GameMapHandle, Props>(function GameMap(
   const [tilesDown, setTilesDown] = useState(__DEMO__);
   const fittedOnce = useRef(false);
   const styleState = useRef<{ loaded: boolean; timer: number | undefined; arm: () => void }>({ loaded: false, timer: undefined, arm: () => {} });
+  const declutterRef = useRef<() => void>(() => {});
   const styleKeyRef = useRef(styleKey);
   styleKeyRef.current = styleKey;
   const latest = useRef({ self, boundary, onMapClick });
@@ -223,6 +237,17 @@ export const GameMap = forwardRef<GameMapHandle, Props>(function GameMap(
       if (!styleState.current.loaded && /style|fetch|Failed|NetworkError|load/i.test(msg)) useFallback();
     });
     m.on('click', (e) => latest.current.onMapClick?.({ lat: e.lngLat.lat, lng: e.lngLat.lng }));
+    let raf = 0;
+    const scheduleDeclutter = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        declutter(m, markers.current);
+      });
+    };
+    declutterRef.current = scheduleDeclutter;
+    m.on('move', scheduleDeclutter);
+    m.on('resize', scheduleDeclutter);
     const ro = new ResizeObserver(() => m.resize());
     ro.observe(container.current);
     return () => {
@@ -309,6 +334,8 @@ export const GameMap = forwardRef<GameMapHandle, Props>(function GameMap(
       if (!mk) {
         const el = build();
         el.style.zIndex = String(z);
+        el.dataset.z = String(z);
+        el.dataset.key = key;
         mk = new Marker({ element: el, anchor: 'center' }).setLngLat(lngLat).addTo(m);
         markers.current.set(key, mk);
       } else {
@@ -353,6 +380,7 @@ export const GameMap = forwardRef<GameMapHandle, Props>(function GameMap(
         () => {
           const el = document.createElement('div');
           el.className = 'mh-marker';
+          el.setAttribute('role', 'img');
           el.setAttribute('aria-label', 'Your location');
           const h = document.createElement('div');
           h.className = 'mh-heading';
@@ -377,6 +405,7 @@ export const GameMap = forwardRef<GameMapHandle, Props>(function GameMap(
         markers.current.delete(key);
       }
     }
+    declutterRef.current();
   }, [self, mates, pings, captures, now, ready]);
 
   // --- radar pulse on new reveals ------------------------------------------------
@@ -452,6 +481,75 @@ function gridLines(b: Boundary): GeoJSON.Feature[] {
     out.push({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [[lng, minLat - pad], [lng, maxLat + pad]] } });
   }
   return out;
+}
+
+interface Rect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+const overlaps = (a: Rect, b: Rect) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+
+/**
+ * Hide labels that would collide with a higher-priority label or another marker, so
+ * text never stacks into an unreadable pile. Markers themselves always stay visible.
+ */
+function declutter(m: MLMap, markers: Map<string, Marker>) {
+  const priority = (key: string) => (key.startsWith('ping:') ? (key.endsWith(':old') ? 2 : 4) : key.startsWith('mate:') ? 3 : 1);
+  const bodies: Rect[] = [];
+  const items: { label: HTMLElement; el: HTMLElement; pri: number; p: { x: number; y: number }; w: number; h: number }[] = [];
+  for (const [key, mk] of markers) {
+    const el = mk.getElement();
+    const p = m.project(mk.getLngLat());
+    bodies.push({ x: p.x - 14, y: p.y - 14, w: 28, h: 28 });
+    const label = el.querySelector<HTMLElement>('.mh-label');
+    if (!label) continue;
+    const w = label.offsetWidth || 70;
+    const h = label.offsetHeight || 30;
+    items.push({ label, el, pri: priority(key), p: { x: p.x, y: p.y }, w, h });
+  }
+  items.sort((a, b) => b.pri - a.pri);
+  const placed: Rect[] = [...bodies];
+  const now = Date.now();
+  for (const it of items) {
+    const pinned = Number(it.el.dataset.pinned ?? 0) > now;
+    // Try below, above, right, left of the marker; hide only if every spot is taken.
+    const candidates: [Placement, Rect][] = [
+      ['below', { x: it.p.x - it.w / 2, y: it.p.y + 18, w: it.w, h: it.h }],
+      ['above', { x: it.p.x - it.w / 2, y: it.p.y - 18 - it.h, w: it.w, h: it.h }],
+      ['right', { x: it.p.x + 20, y: it.p.y - it.h / 2, w: it.w, h: it.h }],
+      ['left', { x: it.p.x - 20 - it.w, y: it.p.y - it.h / 2, w: it.w, h: it.h }],
+    ];
+    const free = candidates.find(([, r]) => !placed.some((o) => overlaps(o, r)));
+    const [place, rect] = free ?? candidates[0]!;
+    placeLabel(it.label, place);
+    const show = pinned || !!free;
+    it.label.style.visibility = show ? 'visible' : 'hidden';
+    if (show) placed.push(rect);
+  }
+}
+
+type Placement = 'below' | 'above' | 'right' | 'left';
+
+function placeLabel(label: HTMLElement, place: Placement) {
+  if (label.dataset.place === place) return;
+  label.dataset.place = place;
+  const s = label.style;
+  s.top = s.bottom = s.left = s.right = s.transform = '';
+  if (place === 'above') {
+    s.top = 'auto';
+    s.bottom = 'calc(100% + 4px)';
+  } else if (place === 'right') {
+    s.top = '50%';
+    s.left = 'calc(100% + 6px)';
+    s.transform = 'translateY(-50%)';
+  } else if (place === 'left') {
+    s.top = '50%';
+    s.left = 'auto';
+    s.right = 'calc(100% + 6px)';
+    s.transform = 'translateY(-50%)';
+  }
 }
 
 function accFeature(p: LatLng, r: number, color: string): GeoJSON.Feature {

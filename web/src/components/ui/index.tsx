@@ -170,7 +170,7 @@ export function Field({ label, hint, error, children }: { label: string; hint?: 
     <label className="block space-y-1.5">
       <span className="label">{label}</span>
       {children}
-      {error ? <span className="block text-sm text-danger">{error}</span> : hint ? <span className="block text-sm text-muted">{hint}</span> : null}
+      {error ? <span className="block text-sm text-danger-ink">{error}</span> : hint ? <span className="block text-sm text-muted">{hint}</span> : null}
     </label>
   );
 }
@@ -490,8 +490,8 @@ export function Pill({ children, className, tone = 'neutral' }: { children: Reac
     neutral: 'bg-surface-3 text-muted border-line',
     ok: 'bg-ok/15 text-ok border-ok/30',
     warn: 'bg-warn/15 text-warn border-warn/30',
-    danger: 'bg-danger/15 text-danger border-danger/30',
-    signal: 'bg-signal/15 text-signal border-signal/30',
+    danger: 'bg-danger/15 text-danger-ink border-danger/30',
+    signal: 'bg-signal/15 text-signal-ink border-signal/30',
     ice: 'bg-ice/15 text-ice border-ice/30',
   };
   return <span className={cn('inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold', tones[tone], className)}>{children}</span>;
@@ -504,7 +504,7 @@ export function Spinner({ className }: { className?: string }) {
 export function Wordmark({ className }: { className?: string }) {
   return (
     <span className={cn('font-display font-bold tracking-[0.18em] uppercase', className)}>
-      Man<span className="text-signal">hunt</span>
+      Man<span className="text-signal-ink">hunt</span>
     </span>
   );
 }

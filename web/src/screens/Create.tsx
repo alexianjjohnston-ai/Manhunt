@@ -82,7 +82,7 @@ export function CreateScreen() {
       onBack={() => (step === 0 ? navigate('/') : setStep(step - 1))}
       footer={
         <div className="space-y-3">
-          {error && <p className="text-center text-sm text-danger">{error}</p>}
+          {error && <p className="text-center text-sm text-danger-ink">{error}</p>}
           {step < STEPS.length - 1 ? (
             <Button variant="primary" size="lg" block disabled={!canNext} onClick={() => setStep(step + 1)}>
               {step === 2 && !boundary ? 'Skip — no play area' : 'Continue'} <ArrowRight className="size-5" />

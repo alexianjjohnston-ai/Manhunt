@@ -125,7 +125,7 @@ export function InGame({ view }: { view: GameView }) {
           <RoleChip view={view} />
           <div className="min-w-0 flex-1 text-center">
             <p className="label !text-[0.6rem]">{clock.paused ? 'Paused' : 'Time left'}</p>
-            <p className={cn('font-mono text-[1.75rem] leading-none font-bold tabular', clock.remaining < 5 * 60_000 && 'text-signal', clock.paused && 'text-muted')} data-testid="game-timer">
+            <p className={cn('font-mono text-[1.75rem] leading-none font-bold tabular', clock.remaining < 5 * 60_000 && 'text-signal-ink', clock.paused && 'text-muted')} data-testid="game-timer">
               {formatDuration(clock.remaining)}
             </p>
           </div>
@@ -242,11 +242,11 @@ function StatusChip({ view }: { view: GameView }) {
   }
   return (
     <div className="flex shrink-0 flex-col items-end gap-0.5 text-[0.7rem] font-semibold" data-testid="status-chip">
-      <span className={cn('inline-flex items-center gap-1', conn === 'online' ? 'text-ok' : 'text-danger')}>
+      <span className={cn('inline-flex items-center gap-1', conn === 'online' ? 'text-ok' : 'text-danger-ink')}>
         {conn === 'online' ? <Wifi className="size-3.5" /> : <WifiOff className="size-3.5" />}
         {conn === 'online' ? 'Live' : 'Offline'}
       </span>
-      <span className={cn('inline-flex items-center gap-1', tone === 'ok' ? 'text-ok' : tone === 'warn' ? 'text-warn' : 'text-danger')}>
+      <span className={cn('inline-flex items-center gap-1', tone === 'ok' ? 'text-ok' : tone === 'warn' ? 'text-warn' : 'text-danger-ink')}>
         <LocateFixed className="size-3.5" />
         {simulated ? 'SIM ' : ''}
         {gps}
@@ -431,13 +431,13 @@ function HunterPanel({
           const m = markers.get(r.id);
           const pos = m?.lat != null ? { lat: m.lat, lng: m.lng! } : m?.lastKnown;
           let status: React.ReactNode = <span className="text-muted">Not revealed yet</span>;
-          if (r.status === 'captured') status = <span className="text-signal">Captured</span>;
+          if (r.status === 'captured') status = <span className="text-signal-ink">Captured</span>;
           else if (r.status === 'left') status = <span className="text-muted">Left the game</span>;
           else if (m) {
             if (m.status === 'ok') status = <span className="text-ok">Seen {formatAge(now - (m.fixAt ?? m.revealedAt))} · ±{m.accuracyM} m</span>;
             else if (m.status === 'stale') status = <span className="text-warn">Stale fix: {formatAge(now - (m.fixAt ?? m.revealedAt))}</span>;
             else status = (
-              <span className="text-danger">
+              <span className="text-danger-ink">
                 Missed ping #{m.seq}
                 {m.lastKnown ? ` · last seen ${formatAge(now - m.lastKnown.fixAt)}` : ''}
               </span>

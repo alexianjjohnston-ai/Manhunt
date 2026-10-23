@@ -171,7 +171,7 @@ export function Lobby({ view }: { view: GameView }) {
           </Suspense>
         )}
 
-        <button type="button" onClick={() => setLeaveOpen(true)} className="mx-auto flex items-center gap-2 py-2 text-sm text-muted hover:text-danger">
+        <button type="button" onClick={() => setLeaveOpen(true)} className="mx-auto flex items-center gap-2 py-2 text-sm text-muted hover:text-danger-ink">
           <LogOut className="size-4" /> Leave game
         </button>
       </main>
@@ -184,7 +184,7 @@ export function Lobby({ view }: { view: GameView }) {
                 <ul className="space-y-1 text-sm text-muted" data-testid="start-blockers">
                   {blockers.map((b) => (
                     <li key={b.text} className="flex gap-2">
-                      <span className={b.ready ? 'text-warn' : 'text-danger'}>•</span> {b.text}
+                      <span className={b.ready ? 'text-warn' : 'text-danger-ink'}>•</span> {b.text}
                     </li>
                   ))}
                 </ul>
@@ -236,7 +236,7 @@ function PlayerRow({ p, isHost, onSelect, meId, compact }: { p: PlayerView; isHo
         (p.isHost || p.team === 'spectator' ? null : p.ready ? (
           <Check className="size-4 shrink-0 text-ok" aria-label="Ready" />
         ) : (
-          <span className="size-2 shrink-0 rounded-full bg-faint" aria-label="Not ready" />
+          <span className="size-2 shrink-0 rounded-full bg-faint" role="img" aria-label="Not ready" />
         ))}
     </>
   );

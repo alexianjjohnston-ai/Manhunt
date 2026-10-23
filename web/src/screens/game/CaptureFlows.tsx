@@ -134,7 +134,7 @@ export function IncomingCapture({ view }: { view: GameView }) {
           role="alertdialog"
           aria-labelledby="capture-title"
         >
-          <div className="grid size-20 place-items-center rounded-full bg-signal/15 text-signal">
+          <div className="grid size-20 place-items-center rounded-full bg-signal/15 text-signal-ink">
             <Hand className="size-10" />
           </div>
           <div>
@@ -180,7 +180,7 @@ function CaptureStatusRow({ c, players, now, onCancel }: { c: CaptureView; playe
   const runner = players.get(c.runnerId);
   return (
     <div className={cn('flex items-center gap-3 rounded-2xl border px-4 py-3', c.status === 'disputed' ? 'border-warn/40 bg-warn/10' : 'border-signal/40 bg-signal/10')}>
-      {c.status === 'disputed' ? <ShieldQuestion className="size-5 shrink-0 text-warn" /> : <Hourglass className="size-5 shrink-0 animate-pulse text-signal" />}
+      {c.status === 'disputed' ? <ShieldQuestion className="size-5 shrink-0 text-warn" /> : <Hourglass className="size-5 shrink-0 animate-pulse text-signal-ink" />}
       <div className="min-w-0 flex-1 text-sm">
         <p className="font-semibold">
           {c.status === 'disputed' ? `${runner?.name ?? 'Runner'} disputed the capture` : `Waiting for ${runner?.name ?? 'runner'} to confirm…`}

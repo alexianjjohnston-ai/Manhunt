@@ -17,12 +17,12 @@ const ICONS: Record<ToastKind, typeof Info> = {
 const TONES: Record<ToastKind, string> = {
   info: 'text-ice',
   ping: 'text-runner',
-  capture: 'text-signal',
+  capture: 'text-signal-ink',
   warn: 'text-warn',
-  error: 'text-danger',
+  error: 'text-danger-ink',
   success: 'text-ok',
   announce: 'text-hunter',
-  emergency: 'text-danger',
+  emergency: 'text-danger-ink',
 };
 
 /** Unobtrusive stacked notifications under the HUD. */

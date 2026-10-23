@@ -37,7 +37,7 @@ export function ScreenShell({
         <h1 className="min-w-0 flex-1 truncate font-display text-xl font-bold">{title}</h1>
         {right}
       </header>
-      <main className={cn('safe-x mx-auto w-full max-w-lg flex-1 overflow-y-auto py-5', className)}>{children}</main>
+      <main tabIndex={0} className={cn('safe-x mx-auto w-full max-w-lg flex-1 overflow-y-auto py-5 outline-none', className)}>{children}</main>
       {footer && <footer className="safe-x safe-bottom mx-auto w-full max-w-lg border-t border-line bg-bg pt-3">{footer}</footer>}
     </div>
   );

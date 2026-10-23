@@ -49,7 +49,7 @@ function Controls({ view, onSettings, onDone }: { view: GameView; onSettings: ()
     <div className="space-y-5 pb-4">
       {view.game.emergency && (
         <div className="rounded-2xl border border-danger/50 bg-danger/10 p-4 text-sm">
-          <p className="font-semibold text-danger">Emergency stop is active</p>
+          <p className="font-semibold text-danger-ink">Emergency stop is active</p>
           <p className="mt-1 text-muted">Make sure everyone is safe before resuming. Resuming turns location sharing back on.</p>
         </div>
       )}
@@ -130,7 +130,7 @@ function Players({ view }: { view: GameView }) {
               <HealthLine p={p} now={now} />
             </div>
             {p.status === 'captured' && <Pill tone="signal">Captured</Pill>}
-            {p.connected ? <Wifi className="size-4 text-ok" aria-label="Online" /> : <WifiOff className="size-4 text-danger" aria-label="Offline" />}
+            {p.connected ? <Wifi className="size-4 text-ok" aria-label="Online" /> : <WifiOff className="size-4 text-danger-ink" aria-label="Offline" />}
           </button>
           {p.health?.warnings.length ? (
             <div className="space-y-1 px-3 pb-2">

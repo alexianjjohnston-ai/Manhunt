@@ -77,7 +77,7 @@ export function JoinScreen({ initialCode }: { initialCode?: string }) {
       footer={
         preview && !blocked && !existing ? (
           <div className="space-y-2">
-            {error && <p className="text-center text-sm text-danger">{error}</p>}
+            {error && <p className="text-center text-sm text-danger-ink">{error}</p>}
             <Button variant="primary" size="lg" block disabled={!name.trim() || !ack || (preview.requiresPassword && !password)} loading={busy} onClick={join}>
               {spectate ? 'Join as spectator' : 'Join game'}
             </Button>
@@ -129,7 +129,7 @@ export function JoinScreen({ initialCode }: { initialCode?: string }) {
             <Spinner className="size-6" />
           </div>
         )}
-        {!preview && error && <p className="rounded-xl border border-danger/30 bg-danger/10 p-3 text-sm text-danger">{error}</p>}
+        {!preview && error && <p className="rounded-xl border border-danger/30 bg-danger/10 p-3 text-sm text-danger-ink">{error}</p>}
 
         {existing && preview && (
           <Card className="space-y-3">

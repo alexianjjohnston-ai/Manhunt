@@ -71,7 +71,7 @@ export function WelcomeScreen() {
                 onClick={() => navigate(`/game/${s.gameId}`)}
                 className="glass flex w-full items-center gap-3 rounded-2xl border border-line px-4 py-3 text-left"
               >
-                <span className="grid size-10 place-items-center rounded-xl bg-signal/15 font-mono text-xs font-bold text-signal">{s.code.slice(0, 3)}</span>
+                <span className="grid size-10 place-items-center rounded-xl bg-signal/15 font-mono text-xs font-bold text-signal-ink">{s.code.slice(0, 3)}</span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-semibold">{s.gameName ?? 'Game'}</span>
                   <span className="block text-sm text-muted">
