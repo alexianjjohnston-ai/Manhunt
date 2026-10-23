@@ -89,7 +89,7 @@ Browsers only grant location on **HTTPS** (or `localhost`), so a phone can't use
 |---|---|
 | `npm run dev` | Server and client with hot reload |
 | `npm run build` | Builds the client into `dist/web` and bundles the server into `dist/server/main.js` |
-| `npm start` | Runs the production build (serves `dist/web` and the API from one process) |
+| `npm start` | Runs the production build on this machine (Windows/macOS/Linux; reads `.env`) |
 | `npm run typecheck` | TypeScript, strict, whole repo |
 | `npm test` | Vitest unit and integration tests |
 | `npm run test:e2e` | Playwright mobile end-to-end tests (builds and starts its own server on :8799) |
@@ -218,6 +218,54 @@ All settings are optional. See [`.env.example`](.env.example).
 | `VITE_SATELLITE_TILES` / `VITE_SATELLITE_ATTRIBUTION` | Esri World Imagery | Satellite raster template (build time) |
 
 There are no secret keys. Player tokens are random values generated per game, and the server stores only their hashes.
+
+## Host it on your own computer
+
+A Windows, Mac or Linux PC is enough for games with friends. The PC runs the server, and a free tunnel gives it the HTTPS address that phones need for location. You don't need router port forwarding.
+
+### 1. One-time setup
+
+1. Install **Node.js 22 LTS** (22.13 or newer) from <https://nodejs.org>. On Windows, run the commands below in PowerShell.
+2. Get the code and build it:
+   ```bash
+   git clone https://github.com/alexianjjohnston-ai/Manhunt.git
+   cd Manhunt
+   npm install
+   npm run build
+   ```
+3. Optional: copy `.env.example` to `.env` and fill in what you need, for example `GOOGLE_MAPS_API_KEY=…`.
+
+### 2. Start the server
+
+```bash
+npm start
+```
+
+Open <http://localhost:8787> on the PC to check it works. Games are stored in `data/manhunt.db`, so they survive a restart. Press Ctrl+C to stop.
+
+### 3. Give phones an HTTPS address
+
+Phones refuse to share location with plain `http://` addresses, including `http://192.168.x.x`. Pick one tunnel:
+
+| Option | Address | How |
+|---|---|---|
+| **Cloudflare quick tunnel** (easiest) | random `https://….trycloudflare.com`, new each time | Install [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/), then run `cloudflared tunnel --url http://localhost:8787` and share the printed address. |
+| **Cloudflare named tunnel** | your own domain, e.g. `https://manhunt.example.com`, stays the same | Needs a domain on Cloudflare (free plan). Follow Cloudflare's "Create a tunnel" guide and point it at `http://localhost:8787`. |
+| **Tailscale Funnel** | `https://your-pc.your-tailnet.ts.net`, stays the same | Install Tailscale, then run `tailscale funnel 8787`. |
+
+Once you have a stable address:
+- Add it to `.env` as `PUBLIC_ORIGIN=https://your-address` (this only allows the game connection from your own site).
+- If you use Google Maps, restrict your key to that address.
+
+A quick tunnel's address changes every run, so leave `PUBLIC_ORIGIN` unset and the Google key unrestricted while testing with one. Switch to a stable address for regular games.
+
+### 4. During a game
+
+- Keep the PC **awake and online** for the whole game. Turn off sleep while hosting (Windows: Settings → System → Power; macOS: System Settings → Energy, or run `caffeinate -i npm start`). Prefer a wired or strong Wi-Fi connection.
+- If the PC or tunnel drops briefly, phones reconnect automatically and the game resumes.
+- **To update:** run `git pull`, `npm install` and `npm run build`, then `npm start` again.
+
+`npm start` defaults to production settings (fast test pings and simulated GPS are off) and trusts the tunnel's forwarded IP header for rate limiting. Every setting in the table below can go in `.env`.
 
 ## Deployment
 

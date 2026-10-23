@@ -223,7 +223,8 @@ describe('behind a trusted proxy', () => {
       let limited = false;
       for (let i = 0; i < 60 && !limited; i++) {
         const res = await fetch(`http://127.0.0.1:${port}/api/games/ZZZZZ9/preview`, {
-          headers: { 'x-forwarded-for': `10.0.0.${i}, 203.0.113.7` },
+          // Alternate between a plain proxy and Cloudflare (Tunnel), which sends CF-Connecting-IP.
+          headers: i % 2 ? { 'x-forwarded-for': `10.0.0.${i}, 203.0.113.7` } : { 'x-forwarded-for': `10.9.9.${i}`, 'cf-connecting-ip': '203.0.113.7' },
         });
         if (res.status === 429) limited = true;
       }

@@ -59,8 +59,11 @@ export function createApp(config: ServerConfig, opts: { now?: () => number; auto
    */
   const clientIp = (req: IncomingMessage) => {
     if (config.trustProxy) {
-      const fly = req.headers['fly-client-ip'];
-      if (typeof fly === 'string' && fly) return fly.trim();
+      // Platform headers set by the proxy itself: Fly.io, Cloudflare (incl. Cloudflare Tunnel).
+      for (const h of ['fly-client-ip', 'cf-connecting-ip']) {
+        const v = req.headers[h];
+        if (typeof v === 'string' && v) return v.trim();
+      }
       const fwd = req.headers['x-forwarded-for'];
       const v = Array.isArray(fwd) ? fwd.join(',') : fwd;
       if (v) return v.split(',').at(-1)!.trim();
