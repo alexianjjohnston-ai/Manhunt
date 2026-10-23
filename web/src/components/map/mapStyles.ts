@@ -15,8 +15,6 @@ const SATELLITE_ATTRIBUTION =
   import.meta.env.VITE_SATELLITE_ATTRIBUTION || 'Imagery © Esri, Maxar, Earthstar Geographics, and the GIS User Community';
 
 export function styleFor(key: MapStyleKey): string | StyleSpecification {
-  // The demo page cannot reach any tile server, so skip straight to the plain style.
-  if (__DEMO__) return fallbackStyle(key);
   if (key === 'satellite') {
     return {
       version: 8,
@@ -34,7 +32,7 @@ export function styleFor(key: MapStyleKey): string | StyleSpecification {
 
 export interface Basemap {
   style: string | StyleSpecification;
-  provider: 'google' | 'osm' | 'none';
+  provider: 'google' | 'osm';
   session?: string;
 }
 
@@ -43,7 +41,6 @@ export interface Basemap {
  * to OpenStreetMap if Google refuses), otherwise OpenStreetMap via OpenFreeMap.
  */
 export async function resolveBasemap(key: MapStyleKey, googleKey: string | null): Promise<Basemap> {
-  if (__DEMO__) return { style: fallbackStyle(key), provider: 'none' };
   if (googleKey) {
     try {
       const { session } = await tileSession(googleKey, key);

@@ -1,16 +1,13 @@
 import { motion } from 'motion/react';
-import { Bot, ChevronRight, KeyRound, Plus, Settings, ShieldCheck, BookOpen } from 'lucide-react';
-import { lazy, Suspense, useState } from 'react';
+import { ChevronRight, KeyRound, Plus, Settings, ShieldCheck, BookOpen } from 'lucide-react';
+import { useState } from 'react';
 import { RadarBackdrop } from '@/components/RadarBackdrop';
 import { Button, Wordmark } from '@/components/ui';
 import { navigate } from '@/lib/router';
 import { sessions } from '@/lib/sessions';
 
-const QuickDemoSheet = __DEMO__ ? lazy(() => import('@/demo/DemoPanels').then((m) => ({ default: m.QuickDemoSheet }))) : null;
-
 export function WelcomeScreen() {
-  const [demoOpen, setDemoOpen] = useState(false);
-  const [saved] = useState(() => (__DEMO__ ? [] : sessions.list().slice(0, 3)));
+  const [saved] = useState(() => sessions.list().slice(0, 3));
   return (
     <div className="relative flex h-full flex-col overflow-hidden">
       <RadarBackdrop />
@@ -40,26 +37,10 @@ export function WelcomeScreen() {
           <Button variant="primary" size="xl" block onClick={() => navigate('/create')}>
             <Plus className="size-5" /> Create game
           </Button>
-          {__DEMO__ ? (
-            <Button variant="glass" size="xl" block onClick={() => setDemoOpen(true)}>
-              <Bot className="size-5" /> Quick demo with bots
-            </Button>
-          ) : (
-            <Button variant="glass" size="xl" block onClick={() => navigate('/join')}>
-              <KeyRound className="size-5" /> Join with code
-            </Button>
-          )}
-          {__DEMO__ && (
-            <p className="rounded-xl border border-warn/30 bg-warn/10 px-3 py-2 text-xs leading-relaxed text-warn">
-              Playtest build: the game server runs inside this page with bot players and simulated GPS. Nothing is shared with other devices.
-            </p>
-          )}
+          <Button variant="glass" size="xl" block onClick={() => navigate('/join')}>
+            <KeyRound className="size-5" /> Join with code
+          </Button>
         </motion.div>
-        {QuickDemoSheet && (
-          <Suspense fallback={null}>
-            <QuickDemoSheet open={demoOpen} onClose={() => setDemoOpen(false)} />
-          </Suspense>
-        )}
 
         {saved.length > 0 && (
           <motion.div className="mt-8 space-y-2" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>

@@ -87,6 +87,12 @@ Test counts at last update: **71 unit/integration** (Vitest) and **8 e2e scenari
 - [x] Rules: infection mode, runner cloaks, hunter radar sweeps, final-phase pings, swap-team rematch, survival ranking (unit + e2e)
 - [~] Real Google APIs not called from this environment (no key/network); requests follow Google's documented formats and are tested against mocks
 
+## M13 Release 1.0.0
+- [x] Removed the in-browser demo build (bots, in-page server, single-file page); the bot simulation script stays as a developer tool
+- [x] Version shown in Settings and reported by `/api/health` and the startup log
+- [x] `npm run package` creates an installable archive; tested by installing it in a clean folder with production dependencies only
+- [x] CHANGELOG.md; git tag `v1.0.0`
+
 ## Evaluated and deferred
 - **Team chat**: skipped for now. Players already have group chats, and in-app chat invites phone use while moving or driving.
 - **Web Push for pings**: deferred. iOS only supports push for installed PWAs, it needs VAPID key management, and push does not fix background GPS.

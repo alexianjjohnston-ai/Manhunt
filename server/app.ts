@@ -2,6 +2,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import { extname, join, normalize, resolve } from 'node:path';
 import { joinCodeSchema } from '@shared/protocol';
+import pkg from '../package.json' with { type: 'json' };
 import type { ServerConfig } from './config';
 import { GameEngine, GameError } from './engine';
 import { SocketHub } from './hub';
@@ -140,7 +141,7 @@ export function createApp(config: ServerConfig, opts: { now?: () => number; auto
       throw new GameError('unsupported', 'Expected application/json', 415);
     }
     if (path === '/api/health' && method === 'GET') {
-      return json(res, 200, { ok: true, games: engine.games.size, sockets: hub.connectionCount() });
+      return json(res, 200, { ok: true, version: pkg.version, games: engine.games.size, sockets: hub.connectionCount() });
     }
     if (path === '/api/config' && method === 'GET') {
       return json(res, 200, {

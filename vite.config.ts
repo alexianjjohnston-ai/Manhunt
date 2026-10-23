@@ -1,7 +1,10 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+
+const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string };
 
 const serverPort = Number(process.env.PORT ?? 8787);
 
@@ -9,7 +12,7 @@ export default defineConfig({
   root: 'web',
   publicDir: 'public',
   plugins: [react(), tailwindcss()],
-  define: { __DEMO__: 'false' },
+  define: { 'import.meta.env.VITE_APP_VERSION': JSON.stringify(version) },
   resolve: {
     alias: {
       '@shared': fileURLToPath(new URL('./shared', import.meta.url)),

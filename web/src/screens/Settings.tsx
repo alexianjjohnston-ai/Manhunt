@@ -108,6 +108,7 @@ export function SettingsScreen() {
             </button>
           </Card>
         </section>
+        <p className="pb-2 text-center text-xs text-muted">MANHUNT {import.meta.env.VITE_APP_VERSION}</p>
       </div>
     </ScreenShell>
   );

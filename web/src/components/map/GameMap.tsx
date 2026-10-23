@@ -1,5 +1,5 @@
 import { LngLatBounds, Map as MLMap, Marker, setWorkerUrl, type GeoJSONSource } from 'maplibre-gl';
-import workerUrl from '@/map-worker';
+import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { formatAge } from '@shared/clock';
 import { boundaryBounds, boundaryRing, destination } from '@shared/geo';
@@ -176,7 +176,7 @@ export const GameMap = forwardRef<GameMapHandle, Props>(function GameMap(
   const markers = useRef(new Map<string, Marker>());
   const [ready, setReady] = useState(0);
   const [failed, setFailed] = useState<string | null>(null);
-  const [tilesDown, setTilesDown] = useState(__DEMO__);
+  const [tilesDown, setTilesDown] = useState(false);
   // The "tiles offline" notice is informational: show it briefly, then get out of the way.
   const [tilesNotice, setTilesNotice] = useState(false);
   useEffect(() => {
@@ -278,17 +278,12 @@ export const GameMap = forwardRef<GameMapHandle, Props>(function GameMap(
   const [basemap, setBasemap] = useState<Basemap | null>(null);
   const basemapGen = useRef(0);
   useEffect(() => {
-    if (!configLoaded && !__DEMO__) return;
+    if (!configLoaded) return;
     const gen = ++basemapGen.current;
     void resolveBasemap(styleKey, googleKey).then((b) => {
       const m = map.current;
       if (!m || gen !== basemapGen.current) return;
       setBasemap(b);
-      if (b.provider === 'none') {
-        setTilesDown(true);
-        m.setStyle(b.style, { diff: false });
-        return;
-      }
       setTilesDown(false);
       styleState.current.arm();
       m.setStyle(b.style, { diff: false });
@@ -480,7 +475,7 @@ export const GameMap = forwardRef<GameMapHandle, Props>(function GameMap(
       {basemap?.provider === 'google' && !tilesDown && <GoogleAttribution map={map.current} session={basemap.session!} apiKey={googleKey!} bottomInset={bottomInset} />}
       {tilesDown && tilesNotice && (
         <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 rounded-full bg-black/60 px-2.5 py-0.5 text-[10px] whitespace-nowrap text-white/80" style={{ bottom: bottomInset + 4 }}>
-          {__DEMO__ ? 'Demo map: no street tiles · grid squares are 100 m' : 'Map tiles offline · positions still accurate'}
+          Map tiles offline · positions still accurate
         </div>
       )}
     </div>

@@ -1,5 +1,7 @@
 # MANHUNT
 
+**Version 1.0.0**. See [CHANGELOG.md](CHANGELOG.md).
+
 A private, real-world Manhunt game you play in your phone's browser. There's no App Store and no accounts.
 
 - **Runners** travel on foot and try to stay free until the clock hits zero.
@@ -93,6 +95,7 @@ Browsers only grant location on **HTTPS** (or `localhost`), so a phone can't use
 | `npm run typecheck` | TypeScript, strict, whole repo |
 | `npm test` | Vitest unit and integration tests |
 | `npm run test:e2e` | Playwright mobile end-to-end tests (builds and starts its own server on :8799) |
+| `npm run package` | Builds `release/manhunt-<version>.tar.gz`: the built app, ready to install with `npm ci --omit=dev && npm start` |
 | `npm run simulate` | Bot simulation against a running server (see below) |
 | `npm run icons` | Re-renders PNG app icons from `web/public/icons/icon.svg` |
 
@@ -165,10 +168,6 @@ The script:
 4. tags runners when bots get within 15 m (mixing confirm requests and tag codes); runners sometimes dispute, and the host bot decides;
 5. prints the event stream until the game ends.
 
-### Browser-only demo build
-
-`npm run build:demo` produces `dist/demo/demo.html`, a single self-contained page for playtesting without a server. It is also packaged as `dist/demo/artifact.html` for claude.ai hosting. The real game engine and projection run inside the page, behind a stand-in for the WebSocket and REST API (`web/src/demo/`). You play against bots with simulated GPS, steering yourself by tapping the map. It's a testing tool only: nothing is shared between devices, and reloading the page ends the game.
-
 ## Architecture
 
 The full plan is in [`PLAN.md`](PLAN.md) and progress is in [`TASKS.md`](TASKS.md).
@@ -225,15 +224,26 @@ A Windows, Mac or Linux PC is enough for games with friends. The PC runs the ser
 
 ### 1. One-time setup
 
-1. Install **Node.js 22 LTS** (22.13 or newer) from <https://nodejs.org>. On Windows, run the commands below in PowerShell.
-2. Get the code and build it:
-   ```bash
-   git clone https://github.com/alexianjjohnston-ai/Manhunt.git
-   cd Manhunt
-   npm install
-   npm run build
-   ```
-3. Optional: copy `.env.example` to `.env` and fill in what you need, for example `GOOGLE_MAPS_API_KEY=…`.
+Install **Node.js 22 LTS** (22.13 or newer) from <https://nodejs.org>. On Windows, run the commands below in PowerShell. Then choose one of these:
+
+**A. From a release archive** (no build tools needed). On a computer with the code, run `npm run package` to create `release/manhunt-<version>.tar.gz`. Copy it to the host PC, then:
+```bash
+tar -xzf manhunt-1.0.0.tar.gz
+cd manhunt-1.0.0
+npm ci --omit=dev
+```
+
+**B. From source:**
+
+```bash
+git clone https://github.com/alexianjjohnston-ai/Manhunt.git
+cd Manhunt
+git checkout v1.0.0     # or stay on main for the latest
+npm install
+npm run build
+```
+
+Optional: copy `.env.example` to `.env` and fill in what you need, for example `GOOGLE_MAPS_API_KEY=…`.
 
 ### 2. Start the server
 

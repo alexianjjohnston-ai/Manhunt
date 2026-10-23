@@ -61,7 +61,7 @@ export const settingsSchema = z.object({
   hunterTeammatesVisible: z.boolean(),
   runnerTeammatesVisible: z.boolean(),
   lobbyLocked: z.boolean(),
-  // Newer rules are optional so older clients/bots keep working; the engine fills defaults.
+  // Newer rules are optional so older clients and scripts keep working; the engine fills defaults.
   mode: z.enum(['classic', 'infection']).optional(),
   cloaksPerRunner: z.number().int().min(0).max(LIMITS.cloaksMax).optional(),
   sweepsPerGame: z.number().int().min(0).max(LIMITS.sweepsMax).optional(),

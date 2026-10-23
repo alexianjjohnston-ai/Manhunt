@@ -13,13 +13,12 @@ import {
   Wifi,
   WifiOff,
 } from 'lucide-react';
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { formatAge, formatDuration } from '@shared/clock';
 import { boundaryStatus, distanceToEdgeM } from '@shared/geo';
 import type { GameView, PlayerView } from '@shared/protocol';
 import { GameMap, type GameMapHandle } from '@/components/map/GameMap';
 import { Toasts } from '@/components/Toasts';
-import { demoSpeed, WALK_MPS } from '@/demo/speed';
 import { Button, HoldButton, Pill, TeamBadge, TeamGlyph } from '@/components/ui';
 import { cue } from '@/lib/feedback';
 import { useGame } from '@/lib/game';
@@ -34,7 +33,6 @@ import { GameMenu } from './GameMenu';
 import { HostDashboard } from './HostDashboard';
 
 const STYLES: MapStyleKey[] = ['dark', 'daylight', 'satellite'];
-const DemoMapHint = __DEMO__ ? lazy(() => import('@/demo/DemoPanels').then((m) => ({ default: m.DemoMapHint }))) : null;
 
 export function InGame({ view }: { view: GameView }) {
   const now = useServerNow(500);
@@ -107,7 +105,6 @@ export function InGame({ view }: { view: GameView }) {
         styleKey={prefs.mapStyle}
         bottomInset={bottomInset}
         topInset={110}
-        onMapClick={__DEMO__ ? (p) => useLocation.getState().setSimTarget(p, WALK_MPS * demoSpeed.value) : undefined}
       />
 
       <AnimatePresence>
@@ -138,11 +135,6 @@ export function InGame({ view }: { view: GameView }) {
         </div>
         <PingBar clock={clock} view={view} pingRequestAt={pingRequestAt} now={now} />
         <Banners view={view} bStatus={bStatus} distEdge={self && game.boundary ? distanceToEdgeM(self, game.boundary) : null} selfStale={!!fix && selfStale} />
-        {DemoMapHint && (
-          <Suspense fallback={null}>
-            <DemoMapHint />
-          </Suspense>
-        )}
         <Toasts inline />
       </div>
 

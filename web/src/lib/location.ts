@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { destination, distanceM } from '@shared/geo';
+import { destination } from '@shared/geo';
 import type { LatLng } from '@shared/types';
 import { usePrefs } from './prefs';
 
@@ -40,8 +40,6 @@ interface LocState {
   setPaused(p: boolean): void;
   startSimulation(center: LatLng, speedMps: number): void;
   stopSimulation(): void;
-  /** Simulation only: walk to this point (then stand still), at `speedMps`. */
-  setSimTarget(p: LatLng | null, speedMps?: number): void;
   /** One-off permission prompt (onboarding). */
   requestPermission(): Promise<boolean>;
 }
@@ -49,7 +47,7 @@ interface LocState {
 let watchId: number | null = null;
 let refreshTimer: number | null = null;
 let simTimer: number | null = null;
-let simState: { pos: LatLng; bearing: number; speed: number; center: LatLng; target: LatLng | null; steered: boolean } | null = null;
+let simState: { pos: LatLng; bearing: number; speed: number; center: LatLng } | null = null;
 const SIM_STEP_MS = 1500;
 
 const supported = typeof navigator !== 'undefined' && 'geolocation' in navigator;
@@ -220,24 +218,10 @@ export const useLocation = create<LocState>((set, get) => {
     /** DEV/TEST ONLY: random-walk around a point. Flagged as simulated end-to-end. */
     startSimulation(center, speedMps) {
       get().stop();
-      simState = { pos: destination(center, Math.random() * 360, Math.random() * 300), bearing: Math.random() * 360, speed: speedMps, center, target: null, steered: false };
+      simState = { pos: destination(center, Math.random() * 360, Math.random() * 300), bearing: Math.random() * 360, speed: speedMps, center };
       const step = () => {
         if (!simState) return;
         const dt = SIM_STEP_MS / 1000;
-        if (simState.target) {
-          // Steered: walk straight to the tapped point, then stop there.
-          const d = distanceM(simState.pos, simState.target);
-          const dy = simState.target.lat - simState.pos.lat;
-          const dx = (simState.target.lng - simState.pos.lng) * Math.cos((simState.pos.lat * Math.PI) / 180);
-          simState.bearing = (Math.atan2(dx, dy) * 180) / Math.PI;
-          if (d <= simState.speed * dt) {
-            simState.pos = simState.target;
-            simState.target = null;
-          } else simState.pos = destination(simState.pos, simState.bearing, simState.speed * dt);
-          publish();
-          return;
-        }
-        if (simState.steered) return publish(); // standing still where the player sent us
         simState.bearing += (Math.random() - 0.5) * 60;
         // Drift back toward centre if wandering too far.
         const back = Math.hypot(simState.pos.lat - simState.center.lat, simState.pos.lng - simState.center.lng) > 0.008;
@@ -257,7 +241,7 @@ export const useLocation = create<LocState>((set, get) => {
             lng: simState.pos.lng,
             accuracy: 6 + Math.random() * 8,
             timestamp: Date.now(),
-            speed: simState.target || !simState.steered ? simState.speed : 0,
+            speed: simState.speed,
             heading: ((simState.bearing % 360) + 360) % 360,
             simulated: true,
           },
@@ -267,13 +251,6 @@ export const useLocation = create<LocState>((set, get) => {
       step();
       simTimer = window.setInterval(step, SIM_STEP_MS);
       set({ simulated: true, watching: true, permission: 'granted' });
-    },
-
-    setSimTarget(p, speedMps) {
-      if (!simState) return;
-      simState.target = p;
-      simState.steered = true;
-      if (speedMps) simState.speed = speedMps;
     },
 
     stopSimulation() {
