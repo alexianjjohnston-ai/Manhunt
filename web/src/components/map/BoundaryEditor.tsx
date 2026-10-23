@@ -1,5 +1,5 @@
 import { Circle, Hexagon, LocateFixed, Trash2, Undo2 } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { boundaryAreaKm2 } from '@shared/geo';
 import { LIMITS } from '@shared/constants';
 import type { Boundary, LatLng } from '@shared/types';
@@ -8,16 +8,31 @@ import { useLocation } from '@/lib/location';
 import { usePrefs } from '@/lib/prefs';
 import { formatDistance } from '@/lib/utils';
 import { GameMap, type GameMapHandle } from './GameMap';
+import { PlaceSearch } from './PlaceSearch';
+
+/** Suggested play-area radius: roomy enough to hide, small enough to find people on foot. */
+export function recommendedRadiusM(players: number, durationMin: number) {
+  const base = 250 + players * 45 + durationMin * 3;
+  return Math.round(Math.min(2000, Math.max(300, base)) / 50) * 50;
+}
 
 /**
- * Host tool for drawing the play area: a circle (tap to set the centre, slide the
- * radius) or a polygon (tap to drop corners).
+ * Host tool for drawing the play area: search a place, use your location, or tap the
+ * map; then a circle (slide the radius) or a custom polygon (tap to drop corners).
  */
-export function BoundaryEditor({ value, onChange }: { value: Boundary | null; onChange: (b: Boundary | null) => void }) {
+export function BoundaryEditor({
+  value,
+  onChange,
+  recommendedRadius = 600,
+}: {
+  value: Boundary | null;
+  onChange: (b: Boundary | null) => void;
+  recommendedRadius?: number;
+}) {
   const mapRef = useRef<GameMapHandle>(null);
   const [mode, setMode] = useState<'circle' | 'polygon'>(value?.type ?? 'circle');
   const [points, setPoints] = useState<LatLng[]>(value?.type === 'polygon' ? value.points : []);
-  const [radius, setRadius] = useState(value?.type === 'circle' ? value.radiusM : 800);
+  const [radius, setRadius] = useState(value?.type === 'circle' ? value.radiusM : recommendedRadius);
   const fix = useLocation((s) => s.fix);
   const requestFresh = useLocation((s) => s.requestFresh);
   const permission = useLocation((s) => s.permission);
@@ -26,6 +41,22 @@ export function BoundaryEditor({ value, onChange }: { value: Boundary | null; on
   const [locating, setLocating] = useState(false);
 
   const setCircle = (center: LatLng, r = radius) => onChange({ type: 'circle', center, radiusM: r });
+
+  // Easiest start: ask for the host's location once (they're choosing where to play),
+  // then propose a circle around them.
+  const requestPermission = useLocation((s) => s.requestPermission);
+  useEffect(() => {
+    if (!value && !fix && permission !== 'denied' && permission !== 'unsupported') void requestPermission();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const proposed = useRef(!!value);
+  useEffect(() => {
+    if (proposed.current || !fix || mode !== 'circle') return;
+    proposed.current = true;
+    setCircle({ lat: fix.lat, lng: fix.lng });
+    mapRef.current?.flyTo(fix, 14);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fix]);
 
   const onMapClick = (p: LatLng) => {
     if (mode === 'circle') setCircle(p);
@@ -48,6 +79,18 @@ export function BoundaryEditor({ value, onChange }: { value: Boundary | null; on
 
   return (
     <div className="space-y-3">
+      <PlaceSearch
+        near={value?.type === 'circle' ? value.center : fix}
+        onPick={(place) => {
+          proposed.current = true;
+          setMode('circle');
+          // Fit big places (a whole park) but never go below the recommended size.
+          const r = Math.round(Math.min(3000, Math.max(recommendedRadius, place.sizeM ?? 0)) / 50) * 50;
+          setRadius(r);
+          setCircle(place.location, r);
+          mapRef.current?.flyTo(place.location, r > 1200 ? 13 : 14);
+        }}
+      />
       <Segmented
         value={mode}
         onChange={(m) => {
@@ -118,6 +161,18 @@ export function BoundaryEditor({ value, onChange }: { value: Boundary | null; on
           )}
         </div>
       </div>
+      {mode === 'circle' && radius !== recommendedRadius && (
+        <button
+          type="button"
+          className="text-sm font-medium text-ice"
+          onClick={() => {
+            setRadius(recommendedRadius);
+            if (value?.type === 'circle') setCircle(value.center, recommendedRadius);
+          }}
+        >
+          Use recommended size ({formatDistance(recommendedRadius, units)})
+        </button>
+      )}
       {mode === 'circle' && (
         <Slider
           label="Radius"

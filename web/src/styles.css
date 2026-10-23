@@ -27,6 +27,8 @@
   --color-ice: var(--mh-ice);
   --color-runner: var(--mh-runner);
   --color-hunter: var(--mh-hunter);
+  --color-runner-fg: var(--mh-runner-fg);
+  --color-hunter-fg: var(--mh-hunter-fg);
   --color-ok: var(--mh-ok);
   --color-warn: var(--mh-warn);
   --color-danger: var(--mh-danger);
@@ -79,6 +81,9 @@
   --mh-ice: #8be3ff;
   --mh-runner: #38d7f5;
   --mh-hunter: #ffa21f;
+  /* Text on team-coloured fills. */
+  --mh-runner-fg: #031018;
+  --mh-hunter-fg: #1a0e00;
   --mh-ok: #4ade80;
   --mh-warn: #fbbf24;
   --mh-danger: #d61f45;
@@ -105,6 +110,8 @@
   --mh-ice: #035e8c;
   --mh-runner: #00618a;
   --mh-hunter: #8f4006;
+  --mh-runner-fg: #ffffff;
+  --mh-hunter-fg: #ffffff;
   --mh-ok: #11692f;
   --mh-warn: #8a5300;
   --mh-danger: #be123c;
@@ -253,7 +260,7 @@ body {
 .mh-runner-ping > span {
   transform: rotate(-45deg);
   font: 800 12px/1 var(--font-display);
-  color: #031018;
+  color: var(--mh-runner-fg);
 }
 .mh-mate-runner {
   width: 24px;

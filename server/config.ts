@@ -15,6 +15,8 @@ export interface ServerConfig {
   publicOrigin: string | null;
   /** Multiplies REST rate-limit capacities (raise only for automated testing). */
   rateLimitScale: number;
+  /** Browser key for Google Maps Platform (Map Tiles API + Places API). Optional. */
+  googleMapsApiKey: string | null;
 }
 
 function bool(v: string | undefined, fallback: boolean): boolean {
@@ -43,5 +45,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
     lobbyIdleHours: num(env.LOBBY_IDLE_HOURS, 12),
     publicOrigin: env.PUBLIC_ORIGIN ?? null,
     rateLimitScale: Math.max(1, num(env.RATE_LIMIT_SCALE, 1)),
+    googleMapsApiKey: env.GOOGLE_MAPS_API_KEY?.trim() || null,
   };
 }

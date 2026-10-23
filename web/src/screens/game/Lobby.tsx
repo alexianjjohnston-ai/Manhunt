@@ -27,6 +27,7 @@ import { useLocation } from '@/lib/location';
 import { navigate } from '@/lib/router';
 import { sessions } from '@/lib/sessions';
 import { cn, inviteUrl } from '@/lib/utils';
+import { rulesSummary } from '@/lib/rules';
 import { HostSettingsSheet } from './HostSettingsSheet';
 
 const AddBotsButton = __DEMO__ ? lazy(() => import('@/demo/DemoPanels').then((m) => ({ default: m.AddBotsButton }))) : null;
@@ -153,13 +154,17 @@ export function Lobby({ view }: { view: GameView }) {
               </Button>
             )}
           </div>
-          <div className="flex flex-wrap gap-2 text-sm">
-            <Pill>{game.settings.durationMin} min game</Pill>
-            <Pill tone="ice">Ping every {game.settings.pingIntervalSec >= 60 ? `${game.settings.pingIntervalSec / 60} min` : `${game.settings.pingIntervalSec}s`}</Pill>
-            <Pill>{game.settings.headStartMin ? `${game.settings.headStartMin} min head start` : 'No head start'}</Pill>
-            <Pill>{game.settings.captureMethod === 'runner_confirm' ? 'Runner confirms captures' : 'Host confirms captures'}</Pill>
-            {game.settings.tagCodeEnabled && <Pill>Tag codes on</Pill>}
-            {game.boundary ? <Pill tone="signal">Play area set</Pill> : <Pill tone="warn">No play area</Pill>}
+          <ul className="space-y-1.5 text-sm leading-relaxed" data-testid="lobby-rules">
+            {rulesSummary(game.settings).map((r) => (
+              <li key={r} className="flex gap-2">
+                <span className="mt-2 size-1.5 shrink-0 rounded-full bg-signal" aria-hidden />
+                <span>{r}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="flex flex-wrap gap-2 pt-1 text-sm">
+            {game.settings.mode === 'infection' && <Pill tone="signal">Infection</Pill>}
+            {game.boundary ? <Pill tone="ice">Play area set</Pill> : <Pill tone="warn">No play area</Pill>}
             {game.hasPassword && <Pill>Password</Pill>}
             {game.settings.lobbyLocked && <Pill tone="warn">Locked</Pill>}
           </div>

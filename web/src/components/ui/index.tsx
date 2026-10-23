@@ -31,8 +31,8 @@ export const buttonVariants = cva(
         ghost: 'text-fg hover:bg-surface-3/60',
         outline: 'border border-line-strong text-fg hover:bg-surface-3/50',
         danger: 'bg-danger text-white hover:brightness-110',
-        runner: 'bg-runner text-[#031018] hover:brightness-110',
-        hunter: 'bg-hunter text-[#1a0e00] hover:brightness-110',
+        runner: 'bg-runner text-runner-fg hover:brightness-110',
+        hunter: 'bg-hunter text-hunter-fg hover:brightness-110',
         glass: 'glass text-fg border border-line',
       },
       size: {

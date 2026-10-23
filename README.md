@@ -45,6 +45,20 @@ Games are private: you need the 6-character join code or the invite link (plus a
 | PWA & UX | Installable manifest and app-shell service worker, wake lock, sounds and haptics, reduced motion, larger text, metric/imperial, and safe-area insets. |
 | Testing | 71 unit and integration tests, 8 Playwright end-to-end scenarios on both iPhone 14 and Pixel 7 viewports (16 runs), and a bot simulation mode. |
 
+## Game rules
+
+The host picks a preset (**Quick chase**, **Classic**, **Infection** or **Long game**), and everything is adjustable under *Advanced rules*:
+
+| Rule | What it does |
+|---|---|
+| Pings | Every interval, hunters see each free runner's last position, at the same moment for everyone. |
+| Final phase | For the last N minutes, pings come twice as often (never below the server's minimum interval). |
+| Cloak (runners) | Hold *Cloak* to hide from the next ping, whether scheduled or a sweep. Hunters see "Cloaked at #4" with the last real position. MANHUNT never shows a fake location. |
+| Radar sweep (hunters) | The hunter team shares a few extra pings on demand. They aren't allowed during the head start or within 45 s of a scheduled ping. |
+| Infection mode | Caught runners switch to the hunters and keep playing. Hunters win when nobody is left running. |
+| Rematch | The host can start a rematch with the same teams or swapped. |
+| Results | Runners are ranked by time survived; the top hunter is shown. |
+
 ## Quick start (local)
 
 Requirements: **Node.js 22.13+** (the server uses the built-in `node:sqlite`) and npm.
@@ -199,6 +213,7 @@ All settings are optional. See [`.env.example`](.env.example).
 | `ALLOW_FAST_PINGS` | dev `true`, prod `false` | Allow ping intervals below 60 s |
 | `ALLOW_SIMULATION` | dev `true`, prod `false` | Accept simulated GPS from devices or bots |
 | `RATE_LIMIT_SCALE` | `1` | Multiplies REST rate limits (testing only) |
+| `GOOGLE_MAPS_API_KEY` | — | Optional browser key for **Google Maps** tiles and place search (see below). Without it, OpenStreetMap tiles are used |
 | `VITE_MAP_STYLE_DARK` / `VITE_MAP_STYLE_LIGHT` | OpenFreeMap `dark` / `liberty` | MapLibre style URLs (set at **build** time) |
 | `VITE_SATELLITE_TILES` / `VITE_SATELLITE_ATTRIBUTION` | Esri World Imagery | Satellite raster template (build time) |
 
@@ -245,6 +260,23 @@ manhunt.example.com {
 
 Run it with systemd or pm2, and set `TRUST_PROXY=true` and `PUBLIC_ORIGIN=https://manhunt.example.com`.
 
+### Google Maps (recommended for the best map data)
+
+With `GOOGLE_MAPS_API_KEY` set, MANHUNT uses:
+- **Map Tiles API** (2D tiles): Google's roadmap (shown in a dark, muted style during the game), light roadmap, and satellite imagery with labels. The tiles are rendered inside MapLibre, so all of MANHUNT's markers, the play-area boundary and the accuracy circles work unchanged. Google's name and the data copyright for the visible area are shown on the map, as the terms require.
+- **Places API (New)**: the "Search a park, address or landmark" box when setting the play area. Picking a result centres the play area there and sizes it to the place.
+
+If Google refuses a request (bad key, quota, billing), the map falls back to OpenStreetMap automatically.
+
+Setup:
+1. In Google Cloud, create a project, enable billing, and enable **Map Tiles API** and **Places API (New)**.
+2. Create an API key. Restrict it:
+   - **Application restriction:** websites (HTTP referrers), set to `https://your-domain/*`. MANHUNT sends only its origin as the referrer (`Referrer-Policy: strict-origin`), never the invite path.
+   - **API restriction:** Map Tiles API and Places API (New) only.
+3. Set `GOOGLE_MAPS_API_KEY` on the server, e.g. `fly secrets set GOOGLE_MAPS_API_KEY=…`, and restart. No rebuild is needed: the client reads the key from `/api/config`.
+
+The key is a *browser* key. It appears in tile URLs by design, which is why the referrer and API restrictions matter. Google bills per tile and per search request, with a monthly free usage allowance per product; check Google's current pricing page and set a budget alert. Tile sessions are cached on each phone for up to two weeks to keep requests down.
+
 ### Map tiles in production
 
 The default basemaps use [OpenFreeMap](https://openfreemap.org), which is free, needs no key, and uses OpenStreetMap data. Attribution is shown on the map. The satellite option defaults to Esri World Imagery, which is fine for light personal use; check Esri's terms or point `VITE_SATELLITE_TILES` at a provider you have access to (MapTiler, Mapbox and others). If tiles fail to load, the map falls back to a plain background, and markers, boundary and accuracy circles still render.
@@ -287,7 +319,7 @@ Every reveal carries the fix's **real measurement time** (device-relative, so ph
 - **Authorization is server-side:** every `host.*` action checks `hostId`. Team changes, starts, the clock and captures can't be set by clients. Captures require the right role and phase, the targeted runner's own confirmation, or the host. Tag-code guesses are rate-limited (5 per minute).
 - **Isolation:** a socket is bound to one (game, player) pair after auth. Views are built per player; tests check that no data crosses games.
 - **Validation:** every REST body and socket message is validated with zod (types, ranges, sizes; names are stripped of control characters). Payload caps are 8 KB per WS message and 64 KB per HTTP body. Each socket also has a token-bucket message limiter.
-- **Headers:** strict CSP (`script-src 'self'`), `frame-ancestors 'none'`, `Referrer-Policy: no-referrer` (so invite links don't leak codes), `X-Content-Type-Options`, HSTS in production, and an optional WebSocket Origin allow-list.
+- **Headers:** strict CSP (`script-src 'self'`), `frame-ancestors 'none'`, `Referrer-Policy: strict-origin` (only the site origin is ever sent, so invite codes in URLs never leak, while referrer-restricted Google API keys still work), `X-Content-Type-Options`, HSTS in production, and an optional WebSocket Origin allow-list.
 - **GPS can be spoofed:** browser location can't be verified. MANHUNT shows implausible speed and out-of-bounds positions to the host as **hints only**, never as automatic penalties.
 
 ## Costs

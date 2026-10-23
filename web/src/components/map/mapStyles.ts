@@ -1,4 +1,5 @@
 import type { StyleSpecification } from 'maplibre-gl';
+import { tileSession, tileUrl } from '@/lib/google';
 import type { MapStyleKey } from '@/lib/prefs';
 
 /**
@@ -29,6 +30,42 @@ export function styleFor(key: MapStyleKey): string | StyleSpecification {
     };
   }
   return key === 'daylight' ? LIGHT : DARK;
+}
+
+export interface Basemap {
+  style: string | StyleSpecification;
+  provider: 'google' | 'osm' | 'none';
+  session?: string;
+}
+
+/**
+ * Pick the basemap: Google Maps tiles when the server has a Google Maps key (falling back
+ * to OpenStreetMap if Google refuses), otherwise OpenStreetMap via OpenFreeMap.
+ */
+export async function resolveBasemap(key: MapStyleKey, googleKey: string | null): Promise<Basemap> {
+  if (__DEMO__) return { style: fallbackStyle(key), provider: 'none' };
+  if (googleKey) {
+    try {
+      const { session } = await tileSession(googleKey, key);
+      return {
+        provider: 'google',
+        session,
+        style: {
+          version: 8,
+          sources: {
+            google: { type: 'raster', tiles: [tileUrl(googleKey, session)], tileSize: 256, maxzoom: key === 'satellite' ? 20 : 22, attribution: 'Google' },
+          },
+          layers: [
+            { id: 'bg', type: 'background', paint: { 'background-color': key === 'daylight' ? '#e5e3df' : '#11161c' } },
+            { id: 'google', type: 'raster', source: 'google' },
+          ],
+        },
+      };
+    } catch (err) {
+      console.warn('Google Maps tiles unavailable, using OpenStreetMap', err);
+    }
+  }
+  return { style: styleFor(key), provider: 'osm' };
 }
 
 /** Used when the tile server is unreachable: a plain background so markers & boundary still work. */

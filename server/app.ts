@@ -70,7 +70,9 @@ export function createApp(config: ServerConfig, opts: { now?: () => number; auto
 
   const securityHeaders = (res: ServerResponse) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('Referrer-Policy', 'no-referrer');
+    // Origin only: invite codes in paths never leak, while Google API keys restricted to
+    // this site (HTTP-referrer restriction) still work.
+    res.setHeader('Referrer-Policy', 'strict-origin');
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
     res.setHeader('Permissions-Policy', 'geolocation=(self), camera=(self), microphone=(), payment=(), usb=()');
@@ -138,7 +140,12 @@ export function createApp(config: ServerConfig, opts: { now?: () => number; auto
       return json(res, 200, { ok: true, games: engine.games.size, sockets: hub.connectionCount() });
     }
     if (path === '/api/config' && method === 'GET') {
-      return json(res, 200, { fastPingsAllowed: config.allowFastPings, simulationAllowed: config.allowSimulation });
+      return json(res, 200, {
+        fastPingsAllowed: config.allowFastPings,
+        simulationAllowed: config.allowSimulation,
+        // A browser key: it ends up in tile URLs anyway, so restrict it by HTTP referrer + API in Google Cloud.
+        googleMapsApiKey: config.googleMapsApiKey,
+      });
     }
     if (path === '/api/games' && method === 'POST') {
       if (!createLimiter.take(ip)) throw new GameError('rate_limited', 'Too many games created. Try again later.', 429);

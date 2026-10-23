@@ -18,6 +18,7 @@ export const DEMO_CENTER = { lat: 51.5025, lng: -0.134 }; // St James's Park, Lo
 export function QuickDemoSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const prefs = usePrefs();
   const [role, setRole] = useState<'runner' | 'hunter'>('hunter');
+  const [mode, setMode] = useState<'classic' | 'infection'>('classic');
   const [bots, setBots] = useState(5);
   const [interval, setInterval] = useState(60);
   const [headStart, setHeadStart] = useState(1);
@@ -39,6 +40,10 @@ export function QuickDemoSheet({ open, onClose }: { open: boolean; onClose: () =
           headStartMin: headStart,
           revealAtHeadStartEnd: headStart > 0,
           teamAssignment: 'manual',
+          mode,
+          cloaksPerRunner: 1,
+          sweepsPerGame: 1,
+          finalPhaseMin: 5,
         },
         boundary: { type: 'circle', center: DEMO_CENTER, radiusM: 650 },
         safetyAck: true,
@@ -69,6 +74,20 @@ export function QuickDemoSheet({ open, onClose }: { open: boolean; onClose: () =
               { value: 'runner', label: (<span className="inline-flex items-center gap-1.5"><Footprints className="size-4 text-runner" /> Runner</span>) },
             ]}
           />
+        </div>
+        <div className="space-y-2">
+          <span className="label">Game</span>
+          <Segmented
+            value={mode}
+            onChange={setMode}
+            options={[
+              { value: 'classic', label: 'Classic' },
+              { value: 'infection', label: 'Infection' },
+            ]}
+          />
+          <p className="text-xs text-muted">
+            {mode === 'infection' ? 'Caught runners switch to the hunters.' : 'Caught runners are out.'} Runners get 1 cloak each; hunters share 1 radar sweep. Pings speed up in the last 5 minutes.
+          </p>
         </div>
         <div className="space-y-2">
           <span className="label">Bots</span>

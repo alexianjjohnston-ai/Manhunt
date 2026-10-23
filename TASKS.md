@@ -79,6 +79,14 @@ Test counts at last update: **71 unit/integration** (Vitest) and **8 e2e scenari
 - Single-instance server by design (in-process timers). Horizontal scaling would need a shared store and a leader for ticks.
 - Map tiles depend on a third-party host (OpenFreeMap by default); there is an offline fallback.
 
+## M12 Readability, Google Maps, easier setup, more fun rules
+- [x] axe WCAG 2 AA audit of 34 screens (dark + daylight): 0 violations after fixes; collision-aware map labels
+- [x] Google Maps Platform: Map Tiles API basemaps (dark/light/satellite) in MapLibre + attribution; Places search for the play area; OSM fallback (e2e with mocked Google APIs)
+- [x] Referrer-Policy `strict-origin` so referrer-restricted Google keys work without leaking invite paths
+- [x] Setup wizard in 3 steps with presets, auto-proposed play area sized for the group, rules summary, advanced rules collapsed
+- [x] Rules: infection mode, runner cloaks, hunter radar sweeps, final-phase pings, swap-team rematch, survival ranking (unit + e2e)
+- [~] Real Google APIs not called from this environment (no key/network); requests follow Google's documented formats and are tested against mocks
+
 ## Evaluated and deferred
 - **Team chat**: skipped for now. Players already have group chats, and in-app chat invites phone use while moving or driving.
 - **Web Push for pings**: deferred. iOS only supports push for installed PWAs, it needs VAPID key management, and push does not fix background GPS.

@@ -21,8 +21,15 @@ export function Results({ view }: { view: GameView }) {
   const [leave, setLeave] = useState(false);
 
   const played = elapsedMs(game.clock, game.clock.endedAt ?? Date.now());
-  const runners = view.players.filter((p) => p.team === 'runner');
-  const survivors = runners.filter((p) => p.status === 'active');
+  // Judge by starting team: in infection mode caught runners finish the game as hunters.
+  const runners = view.players.filter((p) => (p.startTeam ?? p.team) === 'runner');
+  const escaped = (p: (typeof runners)[number]) => p.team === 'runner' && p.status === 'active';
+  const survivors = runners.filter(escaped);
+  const survival = (id: string) => {
+    const e = [...view.events].reverse().find((x) => x.type === 'runner_captured' && x.targetId === id);
+    return e ? e.elapsedMs : played;
+  };
+  const ranked = [...runners].sort((a, b) => survival(b.id) - survival(a.id));
   const confirmed = view.captures.filter((c) => c.status === 'confirmed').sort((a, b) => (a.resolvedAt ?? 0) - (b.resolvedAt ?? 0));
   const captureCounts = new Map<string, number>();
   for (const c of confirmed) if (c.hunterId) captureCounts.set(c.hunterId, (captureCounts.get(c.hunterId) ?? 0) + 1);
@@ -112,25 +119,30 @@ export function Results({ view }: { view: GameView }) {
         </Card>
 
         <Card className="space-y-3">
-          <p className="label">Runners</p>
-          <ul className="space-y-2">
-            {runners.map((r) => {
+          <p className="label">Runners, by time survived</p>
+          <ol className="space-y-2" data-testid="survival">
+            {ranked.map((r, i) => {
               const c = confirmed.find((x) => x.runnerId === r.id);
+              const free = escaped(r);
               return (
                 <li key={r.id} className="flex items-center gap-3">
+                  <span className="w-5 text-right font-mono text-sm text-muted tabular">{i + 1}</span>
                   <TeamGlyph team="runner" />
-                  <span className="flex-1 font-medium">{r.name}</span>
-                  <span className={cn('text-sm', r.status === 'active' ? 'text-ok' : 'text-muted')}>
-                    {r.status === 'active'
-                      ? 'Escaped'
-                      : r.status === 'captured'
-                        ? `Caught${c?.hunterId ? ` by ${players.get(c.hunterId)?.name}` : ''}${capturedAt(view, r.id)}`
-                        : 'Left'}
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-medium">{r.name}</span>
+                    <span className={cn('block text-xs', free ? 'text-ok' : 'text-muted')}>
+                      {free
+                        ? 'Escaped'
+                        : r.status === 'left'
+                          ? 'Left the game'
+                          : `Caught${c?.hunterId ? ` by ${players.get(c.hunterId)?.name}` : ''}${r.team === 'hunter' ? ', then hunted' : ''}`}
+                    </span>
                   </span>
+                  <span className="font-mono text-sm tabular">{formatDuration(survival(r.id))}</span>
                 </li>
               );
             })}
-          </ul>
+          </ol>
           {topHunter && (
             <p className="border-t border-line pt-3 text-sm text-muted">
               Top hunter: <span className="font-semibold text-hunter">{players.get(topHunter[0])?.name}</span> with {topHunter[1]} capture{topHunter[1] === 1 ? '' : 's'}
@@ -152,9 +164,14 @@ export function Results({ view }: { view: GameView }) {
 
         <div className="space-y-2">
           {view.me.isHost ? (
-            <Button variant="primary" size="lg" block onClick={() => send({ type: 'host.rematch' })}>
-              <RotateCcw className="size-5" /> Rematch (same players)
-            </Button>
+            <div className="grid grid-cols-2 gap-2">
+              <Button variant="primary" size="lg" onClick={() => send({ type: 'host.rematch', swapTeams: true })}>
+                <RotateCcw className="size-5" /> Swap teams
+              </Button>
+              <Button size="lg" onClick={() => send({ type: 'host.rematch' })}>
+                Same teams
+              </Button>
+            </div>
           ) : (
             <p className="text-center text-sm text-muted">The host can start a rematch. Stay here to join it.</p>
           )}
@@ -173,10 +190,6 @@ export function Results({ view }: { view: GameView }) {
   );
 }
 
-function capturedAt(view: GameView, runnerId: string) {
-  const e = [...view.events].reverse().find((x) => x.type === 'runner_captured' && x.targetId === runnerId);
-  return e ? ` at ${formatDuration(e.elapsedMs)}` : '';
-}
 
 function Stat({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (

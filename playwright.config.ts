@@ -18,19 +18,20 @@ export default defineConfig({
     { name: 'iphone', use: { ...devices['iPhone 14'], browserName: 'chromium' } },
     { name: 'android', use: { ...devices['Pixel 7'] } },
   ],
-  webServer: {
-    command: 'npm run build && node --disable-warning=ExperimentalWarning dist/server/main.js',
-    url: `http://localhost:${PORT}/api/health`,
-    timeout: 120_000,
-    reuseExistingServer: false,
-    env: {
-      NODE_ENV: 'production',
-      PORT: String(PORT),
-      DATABASE_PATH: ':memory:',
-      ALLOW_FAST_PINGS: 'true',
-      ALLOW_SIMULATION: 'true',
-      TRUST_PROXY: 'false',
-      RATE_LIMIT_SCALE: '20',
+  webServer: [
+    {
+      // Build once, then run both servers: :8799 (main) and :8798 (with a fake Google Maps key).
+      command: 'npm run build && node scripts/e2e-servers.mjs',
+      url: `http://localhost:${PORT}/api/health`,
+      timeout: 180_000,
+      reuseExistingServer: false,
     },
-  },
+    {
+      // Started by the launcher above; this entry only waits until it is up.
+      command: 'node -e "setInterval(() => {}, 1 << 30)"',
+      url: 'http://localhost:8798/api/health',
+      timeout: 180_000,
+      reuseExistingServer: true,
+    },
+  ],
 });

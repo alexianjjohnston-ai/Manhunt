@@ -185,6 +185,9 @@ export const useGame = create<GameStore>((set, get) => {
   function onEvent(e: GameEvent) {
     const map: Partial<Record<GameEvent['type'], [ToastKind, Cue | null]>> = {
       ping_revealed: ['ping', 'ping'],
+      radar_sweep: ['ping', 'alert'],
+      final_phase: ['warn', 'alert'],
+      cloak_used: ['info', null],
       ping_incoming: ['info', 'incoming'],
       runner_captured: ['capture', 'capture'],
       capture_requested: ['capture', 'incoming'],

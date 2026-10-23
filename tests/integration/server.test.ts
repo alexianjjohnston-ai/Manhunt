@@ -86,7 +86,7 @@ describe('HTTP + WebSocket server', () => {
   it('serves health and security headers', async () => {
     const res = await fetch(`http://${base}/api/health`);
     expect(res.status).toBe(200);
-    expect(res.headers.get('referrer-policy')).toBe('no-referrer');
+    expect(res.headers.get('referrer-policy')).toBe('strict-origin');
     expect(res.headers.get('content-security-policy')).toContain("frame-ancestors 'none'");
   });
 

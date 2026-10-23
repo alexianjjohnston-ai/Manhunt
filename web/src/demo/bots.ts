@@ -92,10 +92,33 @@ class Bot {
       speed = 0.3; // waiting out the head start
     } else {
       this.bearing += (Math.random() - 0.5) * 60;
+      this.maybeCloak(v);
     }
+    if (v.me.team === 'hunter') this.maybeSweep(v);
     if (distanceM(this.pos, center) > radius * 0.85) this.bearing = bearingTo(this.pos, center);
     this.pos = destination(this.pos, this.bearing, speed * dt);
     this.sendLocation();
+  }
+
+  /** Runners cloak when a hunter is genuinely close (true simulated positions). */
+  maybeCloak(v: GameView) {
+    if (!v.me.cloaksLeft || v.me.cloakArmed) return;
+    const near = v.players.some((p) => {
+      if (p.team !== 'hunter' || p.status !== 'active') return false;
+      const f = this.fixes().get(p.id);
+      return !!f && distanceM(f, this.pos) < 150;
+    });
+    if (near && Math.random() < 0.4) this.send({ type: 'useCloak' });
+  }
+
+  /** Hunters occasionally fire the team's radar sweep in the second half of the game. */
+  maybeSweep(v: GameView) {
+    if (!v.game.sweepsLeft || v.game.phase !== 'hunting' || !v.game.clock.startedAt) return;
+    const el = Date.now() - v.game.clock.startedAt - v.game.clock.pausedTotalMs;
+    if (el < v.game.settings.durationMin * 60_000 * 0.4) return;
+    const next = v.game.nextPingElapsed;
+    if (next != null && next - el < 60_000) return;
+    if (Math.random() < 0.03) this.send({ type: 'radarSweep' });
   }
 
   /** A hunter "physically" next to a runner (true simulated positions) claims the tag. */

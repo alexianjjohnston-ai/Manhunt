@@ -79,6 +79,19 @@ export function HostSettingsSheet({ view, open, onClose }: { view: GameView; ope
             </div>
           </>
         )}
+        <Slider label="Final phase (pings twice as often)" min={0} max={Math.max(0, Math.min(30, s.durationMin - 5))} step={5} value={Math.min(s.finalPhaseMin, Math.max(0, s.durationMin - 5))} onChange={(v) => set('finalPhaseMin', v)} format={(v) => (v ? `last ${v} min` : 'Off')} />
+        {!running && (
+          <>
+            <div className="space-y-2">
+              <span className="label">When a runner is caught</span>
+              <Segmented value={s.mode} onChange={(v) => set('mode', v)} options={[{ value: 'classic', label: "They're out" }, { value: 'infection', label: 'They join the hunters' }]} />
+            </div>
+            <Card className="py-1">
+              <Stepper label="Cloaks per runner" min={0} max={LIMITS.cloaksMax} value={s.cloaksPerRunner} onChange={(v) => set('cloaksPerRunner', v)} />
+              <Stepper label="Radar sweeps (hunters)" min={0} max={LIMITS.sweepsMax} value={s.sweepsPerGame} onChange={(v) => set('sweepsPerGame', v)} />
+            </Card>
+          </>
+        )}
         <div className="space-y-2">
           <span className="label">Capture confirmation</span>
           <Segmented value={s.captureMethod} onChange={(v) => set('captureMethod', v)} options={[{ value: 'runner_confirm', label: 'Runner confirms' }, { value: 'host_confirm', label: 'Host confirms' }]} />

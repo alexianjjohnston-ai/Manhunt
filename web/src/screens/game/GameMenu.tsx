@@ -8,6 +8,7 @@ import { useGame } from '@/lib/game';
 import { useLocation } from '@/lib/location';
 import { usePrefs } from '@/lib/prefs';
 import { wakeLockSupported } from '@/lib/wakelock';
+import { rulesSummary } from '@/lib/rules';
 import { LeaveSheet } from './Lobby';
 
 export function GameMenu({ view, open, onClose }: { view: GameView; open: boolean; onClose: () => void }) {
@@ -106,11 +107,13 @@ export function GameMenu({ view, open, onClose }: { view: GameView; open: boolea
 
       <Sheet open={rules} onClose={() => setRules(false)} title="Rules & safety" tall>
         <div className="space-y-4 pb-4 text-sm leading-relaxed">
-          <section>
-            <p className="label mb-1">Goal</p>
-            <p className="text-muted">
-              Runners stay free until the clock hits zero. Hunters must capture every runner first. Every {view.game.settings.pingIntervalSec >= 60 ? `${view.game.settings.pingIntervalSec / 60} minutes` : `${view.game.settings.pingIntervalSec} seconds`}, hunters see where each runner was at that moment.
-            </p>
+          <section className="space-y-1.5">
+            <p className="label mb-1">This game</p>
+            {rulesSummary(view.game.settings).map((r) => (
+              <p key={r} className="text-muted">
+                {r}
+              </p>
+            ))}
           </section>
           <section className="space-y-2">
             <p className="label">Safety</p>

@@ -6,7 +6,9 @@ import { boundaryBounds, boundaryRing, destination } from '@shared/geo';
 import type { Boundary, LatLng, Team } from '@shared/types';
 import type { MapStyleKey } from '@/lib/prefs';
 import { cn } from '@/lib/utils';
-import { fallbackStyle, styleFor } from './mapStyles';
+import { useAppConfig } from '@/lib/appConfig';
+import { viewportCopyright } from '@/lib/google';
+import { fallbackStyle, resolveBasemap, type Basemap } from './mapStyles';
 
 setWorkerUrl(workerUrl);
 
@@ -175,6 +177,14 @@ export const GameMap = forwardRef<GameMapHandle, Props>(function GameMap(
   const [ready, setReady] = useState(0);
   const [failed, setFailed] = useState<string | null>(null);
   const [tilesDown, setTilesDown] = useState(__DEMO__);
+  // The "tiles offline" notice is informational: show it briefly, then get out of the way.
+  const [tilesNotice, setTilesNotice] = useState(false);
+  useEffect(() => {
+    if (!tilesDown) return setTilesNotice(false);
+    setTilesNotice(true);
+    const t = window.setTimeout(() => setTilesNotice(false), 8000);
+    return () => window.clearTimeout(t);
+  }, [tilesDown]);
   const fittedOnce = useRef(false);
   const styleState = useRef<{ loaded: boolean; timer: number | undefined; arm: () => void }>({ loaded: false, timer: undefined, arm: () => {} });
   const declutterRef = useRef<() => void>(() => {});
@@ -192,7 +202,8 @@ export const GameMap = forwardRef<GameMapHandle, Props>(function GameMap(
       const c = b ? (b.type === 'circle' ? b.center : boundaryRing(b)[0]!) : (initialCenter ?? latest.current.self ?? null);
       m = new MLMap({
         container: container.current,
-        style: styleFor(styleKey),
+        // Start on a plain background; the real basemap is applied once resolved below.
+        style: fallbackStyle(styleKey),
         center: c ? [c.lng, c.lat] : [0, 20],
         zoom: c ? 14 : 1.5,
         attributionControl: { compact: true },
@@ -225,7 +236,7 @@ export const GameMap = forwardRef<GameMapHandle, Props>(function GameMap(
       m.setStyle(fallbackStyle(styleKeyRef.current), { diff: false });
     };
     styleState.current.arm = armFallback;
-    armFallback();
+    styleState.current.loaded = true;
     m.on('style.load', () => {
       styleState.current.loaded = true;
       window.clearTimeout(styleState.current.timer);
@@ -261,19 +272,28 @@ export const GameMap = forwardRef<GameMapHandle, Props>(function GameMap(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // --- basemap switching -----------------------------------------------------
-  const firstStyle = useRef(true);
+  // --- basemap (Google Maps tiles when configured, else OpenStreetMap) --------
+  const configLoaded = useAppConfig((st) => st.loaded);
+  const googleKey = useAppConfig((st) => st.config?.googleMapsApiKey ?? null);
+  const [basemap, setBasemap] = useState<Basemap | null>(null);
+  const basemapGen = useRef(0);
   useEffect(() => {
-    if (firstStyle.current) {
-      firstStyle.current = false;
-      return;
-    }
-    const m = map.current;
-    if (!m) return;
-    setTilesDown(false);
-    styleState.current.arm();
-    m.setStyle(styleFor(styleKey), { diff: false });
-  }, [styleKey]);
+    if (!configLoaded && !__DEMO__) return;
+    const gen = ++basemapGen.current;
+    void resolveBasemap(styleKey, googleKey).then((b) => {
+      const m = map.current;
+      if (!m || gen !== basemapGen.current) return;
+      setBasemap(b);
+      if (b.provider === 'none') {
+        setTilesDown(true);
+        m.setStyle(b.style, { diff: false });
+        return;
+      }
+      setTilesDown(false);
+      styleState.current.arm();
+      m.setStyle(b.style, { diff: false });
+    });
+  }, [styleKey, googleKey, configLoaded]);
 
   // --- data layers -----------------------------------------------------------
   useEffect(() => {
@@ -457,7 +477,8 @@ export const GameMap = forwardRef<GameMapHandle, Props>(function GameMap(
     <div className={cn('relative', className)} style={{ ['--map-bottom-inset' as string]: `${bottomInset}px` }}>
       {/* maplibre forces position:relative on its container, so size it explicitly */}
       <div ref={container} className="h-full w-full" data-testid="game-map" />
-      {tilesDown && (
+      {basemap?.provider === 'google' && !tilesDown && <GoogleAttribution map={map.current} session={basemap.session!} apiKey={googleKey!} bottomInset={bottomInset} />}
+      {tilesDown && tilesNotice && (
         <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 rounded-full bg-black/60 px-2.5 py-0.5 text-[10px] whitespace-nowrap text-white/80" style={{ bottom: bottomInset + 4 }}>
           {__DEMO__ ? 'Demo map: no street tiles · grid squares are 100 m' : 'Map tiles offline · positions still accurate'}
         </div>
@@ -481,6 +502,34 @@ function gridLines(b: Boundary): GeoJSON.Feature[] {
     out.push({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [[lng, minLat - pad], [lng, maxLat + pad]] } });
   }
   return out;
+}
+
+/** Google logo text + data copyright for the visible area, as the Map Tiles API terms require. */
+function GoogleAttribution({ map, session, apiKey, bottomInset }: { map: MLMap | null; session: string; apiKey: string; bottomInset: number }) {
+  const [copyright, setCopyright] = useState<string | null>(null);
+  useEffect(() => {
+    if (!map) return;
+    let timer: number | undefined;
+    const update = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(async () => {
+        const b = map.getBounds();
+        setCopyright(await viewportCopyright(apiKey, session, map.getZoom(), { north: b.getNorth(), south: b.getSouth(), east: b.getEast(), west: b.getWest() }));
+      }, 600);
+    };
+    update();
+    map.on('moveend', update);
+    return () => {
+      window.clearTimeout(timer);
+      map.off('moveend', update);
+    };
+  }, [map, session, apiKey]);
+  return (
+    <div className="pointer-events-none absolute left-2 flex items-center gap-2 text-[10px] text-white" style={{ bottom: bottomInset + 4 }} data-testid="google-attribution">
+      <span className="font-sans text-sm font-semibold tracking-tight [text-shadow:0_0_3px_rgb(0_0_0/0.9)]">Google</span>
+      {copyright && <span className="rounded bg-black/55 px-1.5 py-0.5">{copyright}</span>}
+    </div>
+  );
 }
 
 interface Rect {

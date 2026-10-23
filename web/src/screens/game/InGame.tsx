@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'motion/react';
 import {
   ChevronUp,
+  EyeOff,
   Crosshair,
   Layers,
   LocateFixed,
@@ -60,7 +61,11 @@ export function InGame({ view }: { view: GameView }) {
     if (Math.abs(now - labelNow) > 5000) setLabelNow(now);
   }, [now, labelNow]);
 
-  const pings = useMemo(() => toPingMarkers(view.runnerMarkers, players), [view.runnerMarkers, players]);
+  // Runners see live teammates already; on their map, only their own revealed spot is useful.
+  const pings = useMemo(() => {
+    const all = toPingMarkers(view.runnerMarkers, players);
+    return me.team === 'runner' ? all.filter((p) => p.id === me.id) : all;
+  }, [view.runnerMarkers, players, me.team, me.id]);
   const mates = useMemo(() => toMateMarkers(view, players), [view, players]);
   const captures = useMemo(() => toCaptureMarkers(view, players), [view, players]);
   const selfStale = fix ? Date.now() - fix.timestamp > 60_000 : true;
@@ -142,7 +147,8 @@ export function InGame({ view }: { view: GameView }) {
       </div>
 
       {/* ---------------- Right rail ---------------- */}
-      <div className="absolute right-3 z-20 flex flex-col gap-2" style={{ bottom: bottomInset + 12 }}>
+      {/* Map controls hide while the panel is expanded so they never cover the top HUD. */}
+      <div className={cn('absolute right-3 z-20 flex flex-col gap-2 transition-opacity', panelOpen && 'pointer-events-none opacity-0')} style={{ bottom: bottomInset + 12 }} aria-hidden={panelOpen}>
         <Button variant="glass" size="iconLg" aria-label="Center on me" onClick={() => mapRef.current?.recenter()}>
           <LocateFixed className="size-5" />
         </Button>
@@ -155,7 +161,7 @@ export function InGame({ view }: { view: GameView }) {
           <Layers className="size-5" />
         </Button>
       </div>
-      <div className="absolute left-3 z-20 flex flex-col gap-2" style={{ bottom: bottomInset + 12 }}>
+      <div className={cn('absolute left-3 z-20 flex flex-col gap-2 transition-opacity', panelOpen && 'pointer-events-none opacity-0')} style={{ bottom: bottomInset + 12 }} aria-hidden={panelOpen}>
         <Button variant="glass" size="iconLg" aria-label="Menu" onClick={() => setMenuOpen(true)}>
           <Menu className="size-5" />
         </Button>
@@ -189,6 +195,7 @@ export function InGame({ view }: { view: GameView }) {
 
       <PauseOverlay view={view} onHost={() => setHostOpen(true)} />
       {role === 'runner' && <IncomingCapture view={view} />}
+      {view.game.settings.mode === 'infection' && <SwitchedSides view={view} />}
       {role === 'hunter' && <DrivingGuard />}
       {role === 'hunter' && <CaptureSheet view={view} open={captureOpen} onClose={() => setCaptureOpen(false)} />}
       {me.isHost && <HostDashboard view={view} open={hostOpen} onClose={() => setHostOpen(false)} />}
@@ -200,6 +207,95 @@ export function InGame({ view }: { view: GameView }) {
 // ---------------------------------------------------------------------------
 // HUD pieces
 // ---------------------------------------------------------------------------
+
+function SweepControl({ view }: { view: GameView }) {
+  const send = useGame((s) => s.send);
+  const now = useServerNow(1000);
+  const clock = clockInfo(view, now);
+  const left = view.game.sweepsLeft;
+  const tooSoon = clock.nextPingIn != null && clock.nextPingIn < 45_000;
+  const can = view.game.phase === 'hunting' && !view.game.paused && left > 0 && !tooSoon;
+  const hint = left === 0 ? 'Your team has used every sweep.' : view.game.phase !== 'hunting' ? 'Available once hunters are released.' : tooSoon ? 'A ping is due soon. Save it.' : 'Reveals every runner right now. Shared by the hunter team.';
+  return (
+    <div className="flex items-center gap-3 rounded-2xl border border-ice/30 bg-ice/10 p-3">
+      <Radar className="size-6 shrink-0 text-ice" aria-hidden />
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold">
+          Radar sweep · {left} left
+        </p>
+        <p className="text-xs text-muted">{hint}</p>
+      </div>
+      <div className="w-32 shrink-0">
+        <HoldButton variant="secondary" size="md" duration={800} disabled={!can} onConfirm={() => send({ type: 'radarSweep' })}>
+          Hold to sweep
+        </HoldButton>
+      </div>
+    </div>
+  );
+}
+
+function CloakControl({ view }: { view: GameView }) {
+  const send = useGame((s) => s.send);
+  const { cloaksLeft, cloakArmed } = view.me;
+  if (cloakArmed) {
+    return (
+      <div className="flex items-center gap-3 rounded-2xl border border-ice/40 bg-ice/10 p-3" role="status">
+        <EyeOff className="size-6 shrink-0 text-ice" aria-hidden />
+        <p className="text-sm">
+          <span className="font-semibold">Cloak active.</span> You'll be hidden from the next ping. Hunters will see that you used a cloak.
+        </p>
+      </div>
+    );
+  }
+  return (
+    <div className="flex items-center gap-3 rounded-2xl border border-line bg-surface-2 p-3">
+      <EyeOff className="size-6 shrink-0 text-muted" aria-hidden />
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold">Cloak · {cloaksLeft} left</p>
+        <p className="text-xs text-muted">Hide from the next ping. Use it when hunters are close.</p>
+      </div>
+      <div className="w-32 shrink-0">
+        <HoldButton variant="secondary" size="md" duration={800} disabled={cloaksLeft === 0} onConfirm={() => send({ type: 'useCloak' })}>
+          Hold to cloak
+        </HoldButton>
+      </div>
+    </div>
+  );
+}
+
+/** Infection mode: a short, clear moment when a runner switches sides. */
+function SwitchedSides({ view }: { view: GameView }) {
+  const [show, setShow] = useState(false);
+  const prev = useRef(view.me.team);
+  useEffect(() => {
+    if (prev.current === 'runner' && view.me.team === 'hunter') {
+      setShow(true);
+      const t = window.setTimeout(() => setShow(false), 6000);
+      prev.current = view.me.team;
+      return () => window.clearTimeout(t);
+    }
+    prev.current = view.me.team;
+  }, [view.me.team]);
+  return (
+    <AnimatePresence>
+      {show && (
+        <motion.button
+          type="button"
+          onClick={() => setShow(false)}
+          className="fixed inset-x-4 top-1/3 z-[65] mx-auto max-w-sm rounded-3xl border border-hunter/50 bg-surface p-6 text-center shadow-2xl"
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+          role="alert"
+        >
+          <Crosshair className="mx-auto size-10 text-hunter" aria-hidden />
+          <p className="mt-3 font-display text-2xl font-bold">You're a hunter now</p>
+          <p className="mt-1 text-muted">You were caught, so you've switched sides. Help catch the runners who are still free.</p>
+        </motion.button>
+      )}
+    </AnimatePresence>
+  );
+}
 
 function RoleChip({ view }: { view: GameView }) {
   const { me } = view;
@@ -258,6 +354,7 @@ function StatusChip({ view }: { view: GameView }) {
 function PingBar({ clock, view, pingRequestAt, now }: { clock: ClockInfo; view: GameView; pingRequestAt: number | null; now: number }) {
   const isRunner = view.me.team === 'runner' && view.me.status === 'active';
   const incoming = pingRequestAt != null && pingRequestAt > now;
+  const finalPhase = view.game.settings.finalPhaseMin > 0 && clock.remaining <= view.game.settings.finalPhaseMin * 60_000;
   if (clock.phase === 'headstart') {
     return (
       <div className="pointer-events-auto glass flex items-center gap-3 rounded-2xl border border-warn/40 px-4 py-2.5" data-testid="headstart-bar">
@@ -291,7 +388,7 @@ function PingBar({ clock, view, pingRequestAt, now }: { clock: ClockInfo; view: 
             ? isRunner
               ? 'Ping incoming. Keep MANHUNT open!'
               : 'Ping incoming…'
-            : `Next ping${view.game.pingCount ? ` (#${view.game.pingCount + 1})` : ''}`}
+            : `${finalPhase ? 'Final phase · next ping' : 'Next ping'}${view.game.pingCount ? ` (#${view.game.pingCount + 1})` : ''}`}
         </p>
         <p className="text-xs text-muted">{isRunner ? 'Hunters will see where you are' : view.me.team === 'hunter' ? 'All runners revealed at once' : 'Runner locations revealed to hunters'}</p>
       </div>
@@ -426,6 +523,7 @@ function HunterPanel({
         }
       />
       <PendingCaptureCard view={view} players={players} />
+      {view.game.settings.sweepsPerGame > 0 && <SweepControl view={view} />}
       <ul className="space-y-1.5" aria-label="Runners">
         {runners.map((r) => {
           const m = markers.get(r.id);
@@ -436,6 +534,12 @@ function HunterPanel({
           else if (m) {
             if (m.status === 'ok') status = <span className="text-ok">Seen {formatAge(now - (m.fixAt ?? m.revealedAt))} · ±{m.accuracyM} m</span>;
             else if (m.status === 'stale') status = <span className="text-warn">Stale fix: {formatAge(now - (m.fixAt ?? m.revealedAt))}</span>;
+            else if (m.status === 'cloaked') status = (
+              <span className="text-ice">
+                Cloaked at #{m.seq}
+                {m.lastKnown ? ` · last seen ${formatAge(now - m.lastKnown.fixAt)}` : ''}
+              </span>
+            );
             else status = (
               <span className="text-danger-ink">
                 Missed ping #{m.seq}
@@ -481,6 +585,7 @@ function RunnerPanel({ view, now, expanded, onExpand }: { view: GameView; now: n
         title={last}
         subtitle={serverAge == null ? 'Server has no location from you yet' : `Server has your location from ${formatAge(serverAge)}`}
       />
+      {view.game.settings.cloaksPerRunner > 0 && <CloakControl view={view} />}
       {view.me.tagCode && <TagCodeCard code={view.me.tagCode} />}
       <div className="rounded-2xl border border-line bg-surface-2 p-3 text-sm">
         <p className="font-semibold">Objective</p>

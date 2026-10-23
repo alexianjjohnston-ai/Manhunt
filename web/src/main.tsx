@@ -5,9 +5,11 @@ import './styles.css';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
+import { loadAppConfig } from './lib/appConfig';
 import { applyDocumentPrefs } from './lib/prefs';
 
 applyDocumentPrefs();
+loadAppConfig();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

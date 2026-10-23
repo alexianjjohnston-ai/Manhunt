@@ -25,6 +25,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return body as T;
 }
 
+export interface ServerConfigView {
+  fastPingsAllowed: boolean;
+  simulationAllowed: boolean;
+  googleMapsApiKey: string | null;
+}
+
 export interface JoinResult {
   gameId: string;
   code: string;
@@ -47,7 +53,7 @@ export interface GamePreview {
 }
 
 export const api = {
-  config: () => request<{ fastPingsAllowed: boolean; simulationAllowed: boolean }>('/api/config'),
+  config: () => request<ServerConfigView>('/api/config'),
   create: (body: CreateGameBody) => request<JoinResult>('/api/games', { method: 'POST', body: JSON.stringify(body) }),
   preview: (code: string) => request<GamePreview>(`/api/games/${encodeURIComponent(code)}/preview`),
   join: (code: string, body: JoinGameBody) =>

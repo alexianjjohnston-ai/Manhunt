@@ -82,12 +82,12 @@ test('host creates a private game through the setup wizard', async ({ browser },
   await expect(host.page.getByRole('heading', { name: /manhunt/i })).toBeVisible();
   await host.page.getByRole('button', { name: 'Create game' }).click();
   await host.page.getByPlaceholder('e.g. Alex').fill('Wizard');
-  await host.page.getByRole('button', { name: /Continue/ }).click(); // timing
+  await host.page.getByRole('radio', { name: /Infection/ }).click();
   await host.page.getByRole('button', { name: /Continue/ }).click(); // area
-  await host.page.getByRole('button', { name: 'Use my location' }).click();
+  // The area is proposed around the host automatically, sized for the group.
   await expect(host.page.getByText(/Play area ≈/)).toBeVisible();
-  await host.page.getByRole('button', { name: /Continue/ }).click(); // rules
-  await host.page.getByRole('button', { name: /Continue/ }).click(); // safety
+  await host.page.getByRole('button', { name: /Continue/ }).click(); // review
+  await expect(host.page.getByTestId('rules-summary')).toContainText('Caught runners switch sides');
   const create = host.page.getByRole('button', { name: /Create private game/ });
   await expect(create).toBeDisabled();
   await host.page.getByRole('checkbox').check();
@@ -95,6 +95,7 @@ test('host creates a private game through the setup wizard', async ({ browser },
   await host.page.waitForURL(/\/game\//);
   await expect(host.page.getByTestId('join-code')).toHaveText(/^[A-HJ-NP-Z2-9]{6}$/);
   await expect(host.page.getByText('Location ready')).toBeVisible();
+  await expect(host.page.getByTestId('lobby-rules')).toContainText('Caught runners switch sides');
 });
 
 test('full game: join, timed reveal, capture confirmation, results', async ({ browser }, info) => {
@@ -274,4 +275,27 @@ test('each revealed runner has exactly one marker across successive pings', asyn
   await expect.poll(() => host.frames.some((f) => f.includes('"seq":2')), { timeout: 25_000 }).toBe(true);
   await host.page.waitForTimeout(1000);
   await expect(host.page.locator('.mh-runner-ping')).toHaveCount(1);
+});
+
+test('runner cloak hides them from a hunter radar sweep (labelled, never faked)', async ({ browser }, info) => {
+  const host = await newPlayer(browser, info);
+  const runner = await newPlayer(browser, info, { latitude: 51.5031, longitude: -0.1222 });
+  const { code } = await hostGame(host, { pingIntervalSec: 120, finalPhaseMin: 0, cloaksPerRunner: 1, sweepsPerGame: 1 });
+  await joinViaUi(runner, code, 'Cleo');
+  await assignTeam(host.page, 'Hostie', 'Hunters');
+  await assignTeam(host.page, 'Cleo', 'Runners');
+  await runner.page.getByTestId('ready-button').click();
+  await host.page.getByTestId('start-button').click();
+
+  await runner.page.getByRole('button', { name: 'Expand panel' }).click();
+  await hold(runner.page, /Hold to cloak/);
+  await expect(runner.page.getByText('Cloak active.')).toBeVisible();
+
+  await host.page.getByRole('button', { name: 'Expand panel' }).click();
+  await hold(host.page, /Hold to sweep/);
+  await expect(host.page.getByText(/Cloaked at #1/)).toBeVisible();
+  await expect(host.page.locator('.mh-runner-ping')).toHaveCount(0);
+  await expect(host.page.getByText(/Radar sweep · 0 left/)).toBeVisible();
+  // The cloak was used up by the sweep.
+  await expect(runner.page.getByText(/Cloak · 0 left/)).toBeVisible();
 });

@@ -152,7 +152,7 @@ export function disconnect(c: DemoConn) {
 export function api(method: string, path: string, body: unknown): { status: number; json: unknown } {
   try {
     if (path === '/api/health') return { status: 200, json: { ok: true } };
-    if (path === '/api/config') return { status: 200, json: { fastPingsAllowed: true, simulationAllowed: true } };
+    if (path === '/api/config') return { status: 200, json: { fastPingsAllowed: true, simulationAllowed: true, googleMapsApiKey: null } };
     if (path === '/api/games' && method === 'POST') {
       const { game, player, token } = engine.createGame(body);
       return { status: 201, json: { gameId: game.id, code: game.code, playerId: player.id, token } };
