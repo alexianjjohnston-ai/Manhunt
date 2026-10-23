@@ -238,7 +238,6 @@ npm ci --omit=dev
 ```bash
 git clone https://github.com/alexianjjohnston-ai/Manhunt.git
 cd Manhunt
-git checkout v1.0.0     # or stay on main for the latest
 npm install
 npm run build
 ```
