@@ -1,8 +1,10 @@
-import { LocateFixed, Trash2 } from 'lucide-react';
+import { LocateFixed, Map as MapIcon, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { BROWSER_LIMITS } from '@/content';
 import { ScreenShell } from '@/components/ScreenShell';
 import { Button, Card, Pill, Segmented, Toggle } from '@/components/ui';
+import { useAppConfig } from '@/lib/appConfig';
+import { checkGoogle, type GoogleCheck } from '@/lib/google';
 import { useLocation } from '@/lib/location';
 import { usePrefs } from '@/lib/prefs';
 import { navigate } from '@/lib/router';
@@ -55,6 +57,8 @@ export function SettingsScreen() {
             ))}
           </ul>
         </section>
+
+        <MapsSection />
 
         <section className="space-y-2">
           <p className="label">Display</p>
@@ -111,5 +115,66 @@ export function SettingsScreen() {
         <p className="pb-2 text-center text-xs text-muted">MANHUNT {import.meta.env.VITE_APP_VERSION}</p>
       </div>
     </ScreenShell>
+  );
+}
+
+/** Which map provider is in use, and a live check of the Google key from this device. */
+function MapsSection() {
+  const loaded = useAppConfig((s) => s.loaded);
+  const googleKey = useAppConfig((s) => s.config?.googleMapsApiKey ?? null);
+  const basemap = useAppConfig((s) => s.basemap);
+  const [checking, setChecking] = useState(false);
+  const [result, setResult] = useState<GoogleCheck | null>(null);
+  if (!loaded) return null;
+
+  const status = !googleKey
+    ? { tone: 'neutral' as const, text: 'OpenStreetMap' }
+    : basemap?.provider === 'google'
+      ? { tone: 'ok' as const, text: 'Google Maps' }
+      : basemap?.provider === 'osm'
+        ? { tone: 'warn' as const, text: 'Google refused' }
+        : { tone: 'neutral' as const, text: 'Google Maps (not loaded yet)' };
+
+  return (
+    <section className="space-y-2" aria-labelledby="maps-label">
+      <p className="label" id="maps-label">
+        Maps
+      </p>
+      <Card className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <span className="font-medium">Map data</span>
+          <span data-testid="maps-provider">
+            <Pill tone={status.tone}>{status.text}</Pill>
+          </span>
+        </div>
+        {!googleKey && <p className="text-sm text-muted">This server has no Google Maps key, so maps come from OpenStreetMap. The host can add one in the server&apos;s .env file.</p>}
+        {basemap?.provider === 'osm' && basemap.googleError && (
+          <p className="text-sm text-warn" data-testid="maps-error">
+            {basemap.googleError} Using OpenStreetMap instead.
+          </p>
+        )}
+        {googleKey && (
+          <>
+            <Button
+              block
+              loading={checking}
+              onClick={async () => {
+                setChecking(true);
+                setResult(await checkGoogle(googleKey));
+                setChecking(false);
+              }}
+            >
+              <MapIcon className="size-4" /> Check Google Maps
+            </Button>
+            {result && (
+              <ul className="space-y-1 text-sm" data-testid="maps-check">
+                <li className={result.tiles ? 'text-warn' : 'text-ok'}>Map tiles: {result.tiles ?? 'working'}</li>
+                <li className={result.places ? 'text-warn' : 'text-ok'}>Place search: {result.places ?? 'working'}</li>
+              </ul>
+            )}
+          </>
+        )}
+      </Card>
+    </section>
   );
 }

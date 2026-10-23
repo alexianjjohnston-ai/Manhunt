@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.0 — Google Maps checks and a test build
+
+- **Settings → Maps** shows where map data comes from (Google or OpenStreetMap), explains in plain words why Google refused a key (invalid key, website not allowed, API not enabled, billing, quota), and has a **Check Google Maps** button that tests the key from that device.
+- `npm run check:google` tests the server's key against the Map Tiles API and Places API (New) from the command line, optionally as a given website (`--referer`).
+- The server log says whether maps come from Google or OpenStreetMap.
+- Servers with testing features on (fast pings or simulated GPS) show a **Test server** label on the welcome screen.
+- `npm run package:test` builds a test package with a ready `.env` and step-by-step instructions for trying Google Maps on your own computer.
+
 ## 1.0.0 — first release
 
 **Play**

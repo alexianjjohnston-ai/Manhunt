@@ -74,4 +74,43 @@ test('uses Google Maps tiles and Places search when a key is configured', async 
   await expect.poll(async () => Math.abs((await centerLat()) - 51.5073) < 0.003).toBe(true);
   // Picking a result doesn't re-open the suggestions.
   await expect(page.getByRole('listbox')).toHaveCount(0);
+
+  // Settings reports Google as the map provider, and the live check passes.
+  await page.evaluate(() => {
+    history.pushState(null, '', '/settings');
+    dispatchEvent(new PopStateEvent('popstate'));
+  });
+  await expect(page.getByTestId('maps-provider')).toHaveText('Google Maps');
+  await page.getByRole('button', { name: 'Check Google Maps' }).click();
+  await expect(page.getByTestId('maps-check')).toHaveText('Map tiles: workingPlace search: working');
+});
+
+test('explains a refused Google key and falls back to OpenStreetMap', async ({ browser }, info) => {
+  const ctx = await browser.newContext({ ...info.project.use, baseURL: GOOGLE_SERVER, geolocation: { latitude: 51.5, longitude: -0.12, accuracy: 10 }, permissions: ['geolocation'] });
+  const page = await ctx.newPage();
+  const blocked = { error: { code: 403, status: 'PERMISSION_DENIED', message: 'Requests from referer http://localhost:8798/ are blocked.', details: [{ reason: 'API_KEY_HTTP_REFERRER_BLOCKED' }] } };
+  await page.route('https://tile.googleapis.com/**', (route) => route.fulfill({ status: 403, json: blocked }));
+  await page.route('https://places.googleapis.com/**', (route) =>
+    route.fulfill({ status: 403, json: { error: { code: 403, status: 'PERMISSION_DENIED', message: 'Places API (New) has not been used in project 1 before or it is disabled.', details: [{ reason: 'SERVICE_DISABLED' }] } } }),
+  );
+
+  // The testing features of this server are flagged on the welcome screen.
+  await page.goto('/');
+  await expect(page.getByTestId('test-server')).toHaveText('Test server');
+
+  // Open the map (play-area step), then go to Settings without reloading the app.
+  await page.goto('/create');
+  await page.getByPlaceholder('e.g. Alex').fill('Gee');
+  await page.getByRole('button', { name: /Continue/ }).click();
+  await page.waitForFunction(() => !!(window as unknown as { __manhuntMap?: unknown }).__manhuntMap);
+  await page.evaluate(() => {
+    history.pushState(null, '', '/settings');
+    dispatchEvent(new PopStateEvent('popstate'));
+  });
+
+  await expect(page.getByTestId('maps-provider')).toHaveText('Google refused');
+  await expect(page.getByTestId('maps-error')).toContainText('does not allow this website (http://localhost:8798)');
+  await page.getByRole('button', { name: 'Check Google Maps' }).click();
+  await expect(page.getByTestId('maps-check')).toContainText('Map tiles: The key does not allow this website');
+  await expect(page.getByTestId('maps-check')).toContainText('Place search: The Places API (New) is not enabled');
 });

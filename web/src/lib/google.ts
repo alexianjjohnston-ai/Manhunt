@@ -68,7 +68,7 @@ export function tileSession(key: string, type: GoogleMapType): Promise<Session> 
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(sessionBody(type)),
     });
-    if (!res.ok) throw new Error(`Map Tiles session failed (${res.status})`);
+    if (!res.ok) throw new GoogleApiError('Map Tiles API', res.status, await explainGoogleError(res, 'Map Tiles API'));
     const body = (await res.json()) as { session: string; expiry: string | number };
     const s: Session = { session: body.session, expiry: Number(body.expiry) };
     try {
@@ -81,6 +81,70 @@ export function tileSession(key: string, type: GoogleMapType): Promise<Session> 
   sessions.set(type, p);
   p.catch(() => sessions.delete(type));
   return p;
+}
+
+/** A Google API refusal with a plain-language reason the host can act on. */
+export class GoogleApiError extends Error {
+  constructor(
+    readonly api: string,
+    readonly status: number,
+    readonly reason: string,
+  ) {
+    super(`${api} failed (${status}): ${reason}`);
+  }
+}
+
+/** Turn Google's error JSON into one sentence saying what to fix in Google Cloud. */
+export async function explainGoogleError(res: Response, api: string): Promise<string> {
+  let text = '';
+  try {
+    const body = (await res.json()) as { error?: { status?: string; message?: string; details?: unknown } };
+    text = `${body.error?.status ?? ''} ${body.error?.message ?? ''} ${JSON.stringify(body.error?.details ?? [])}`;
+  } catch {
+    /* not JSON */
+  }
+  const has = (s: string) => text.includes(s);
+  if (has('API_KEY_INVALID') || has('API key not valid')) return 'The key is not valid. Check it was copied completely.';
+  if (has('REFERRER_BLOCKED') || has('referer')) return `The key does not allow this website (${location.origin}). Add it under Website restrictions.`;
+  if (has('API_KEY_SERVICE_BLOCKED') || has('are blocked')) return `The key is not allowed to use the ${api}. Add it under API restrictions.`;
+  if (has('SERVICE_DISABLED') || has('has not been used') || has('is disabled')) return `The ${api} is not enabled in your Google Cloud project.`;
+  if (has('BILLING') || has('billing')) return 'The Google Cloud project needs a billing account.';
+  if (res.status === 429 || has('RESOURCE_EXHAUSTED')) return 'Quota used up or too many requests. Try again later.';
+  return `Google answered ${res.status}.`;
+}
+
+export interface GoogleCheck {
+  tiles: string | null;
+  places: string | null;
+}
+
+/** Live check of both APIs from this browser (so referrer restrictions are tested too). Null = working. */
+export async function checkGoogle(key: string): Promise<GoogleCheck> {
+  const run = async (api: string, fn: () => Promise<Response>) => {
+    try {
+      const res = await fn();
+      return res.ok ? null : await explainGoogleError(res, api);
+    } catch {
+      return 'Could not reach Google from this device.';
+    }
+  };
+  const [tiles, places] = await Promise.all([
+    run('Map Tiles API', () =>
+      fetch(`${TILE_HOST}/v1/createSession?key=${encodeURIComponent(key)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(sessionBody('daylight')),
+      }),
+    ),
+    run('Places API (New)', () =>
+      fetch(`${PLACES_HOST}/v1/places:autocomplete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': key },
+        body: JSON.stringify({ input: 'park' }),
+      }),
+    ),
+  ]);
+  return { tiles, places };
 }
 
 export function tileUrl(key: string, session: string) {

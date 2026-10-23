@@ -96,6 +96,8 @@ Browsers only grant location on **HTTPS** (or `localhost`), so a phone can't use
 | `npm test` | Vitest unit and integration tests |
 | `npm run test:e2e` | Playwright mobile end-to-end tests (builds and starts its own server on :8799) |
 | `npm run package` | Builds `release/manhunt-<version>.tar.gz`: the built app, ready to install with `npm ci --omit=dev && npm start` |
+| `npm run package:test` | Builds `release/manhunt-<version>-test.tar.gz`: the same app with a ready `.env` (fast pings and simulated GPS on, a slot for the Google key) and test instructions |
+| `npm run check:google` | Calls Google with the key in `.env` and says in plain words what is wrong, if anything. Add `-- --referer https://your-address/` when the key is restricted to websites |
 | `npm run simulate` | Bot simulation against a running server (see below) |
 | `npm run icons` | Re-renders PNG app icons from `web/public/icons/icon.svg` |
 
@@ -330,7 +332,8 @@ Setup:
 2. Create an API key. Restrict it:
    - **Application restriction:** websites (HTTP referrers), set to `https://your-domain/*`. MANHUNT sends only its origin as the referrer (`Referrer-Policy: strict-origin`), never the invite path.
    - **API restriction:** Map Tiles API and Places API (New) only.
-3. Set `GOOGLE_MAPS_API_KEY` on the server, e.g. `fly secrets set GOOGLE_MAPS_API_KEY=…`, and restart. No rebuild is needed: the client reads the key from `/api/config`.
+3. Set `GOOGLE_MAPS_API_KEY` on the server, e.g. `fly secrets set GOOGLE_MAPS_API_KEY=…` or in `.env` on your own computer, and restart. No rebuild is needed: the client reads the key from `/api/config`.
+4. Check it: `npm run check:google -- --referer https://your-domain/`. In the app, **Settings → Maps** shows whether maps come from Google, why Google refused if it did, and a **Check Google Maps** button that tests the key from that phone (so website restrictions are tested for real).
 
 The key is a *browser* key. It appears in tile URLs by design, which is why the referrer and API restrictions matter. Google bills per tile and per search request, with a monthly free usage allowance per product; check Google's current pricing page and set a budget alert. Tile sessions are cached on each phone for up to two weeks to keep requests down.
 
@@ -396,6 +399,7 @@ A game with 20 players uses very little bandwidth. That's about one small JSON u
 |---|---|
 | "Location is blocked" | Re-enable location for the site in the browser settings, then reload. |
 | Pings always "missed" for one runner | Their screen is locking or the app is in the background. Turn on **Keep screen awake** and keep MANHUNT in the foreground. |
+| Maps are OpenStreetMap although a Google key is set | Open **Settings → Maps** for the reason, or run `npm run check:google`. Google Cloud changes can take a few minutes to apply. |
 | "Map tiles unavailable" | The tile host is unreachable on that network. Positions are still correct; check `VITE_MAP_STYLE_*`. |
 | Sockets disconnect behind a proxy | Ensure WebSocket upgrades are allowed on `/ws`, and set `PUBLIC_ORIGIN` correctly. |
 | `ExperimentalWarning: SQLite` | Harmless (Node's built-in SQLite). The start scripts suppress it. |

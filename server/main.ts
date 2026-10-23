@@ -9,7 +9,8 @@ const port = await app.listen();
 console.log(
   `MANHUNT ${pkg.version} listening on http://${config.host}:${port} ` +
     `(${config.production ? 'production' : 'development'}; db=${config.databasePath}` +
-    `${config.allowFastPings ? '; fast pings ON' : ''}${config.allowSimulation ? '; simulation ON' : ''})`,
+    `${config.allowFastPings ? '; fast pings ON' : ''}${config.allowSimulation ? '; simulation ON' : ''}` +
+    `; maps=${config.googleMapsApiKey ? 'Google (check the key with: npm run check:google)' : 'OpenStreetMap'})`,
 );
 
 let closing = false;

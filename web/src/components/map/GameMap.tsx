@@ -284,6 +284,7 @@ export const GameMap = forwardRef<GameMapHandle, Props>(function GameMap(
       const m = map.current;
       if (!m || gen !== basemapGen.current) return;
       setBasemap(b);
+      useAppConfig.setState({ basemap: b.provider === 'google' ? { provider: 'google' } : { provider: 'osm', googleError: b.googleError ?? null } });
       setTilesDown(false);
       styleState.current.arm();
       m.setStyle(b.style, { diff: false });

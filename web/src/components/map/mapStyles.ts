@@ -1,5 +1,5 @@
 import type { StyleSpecification } from 'maplibre-gl';
-import { tileSession, tileUrl } from '@/lib/google';
+import { GoogleApiError, tileSession, tileUrl } from '@/lib/google';
 import type { MapStyleKey } from '@/lib/prefs';
 
 /**
@@ -34,6 +34,8 @@ export interface Basemap {
   style: string | StyleSpecification;
   provider: 'google' | 'osm';
   session?: string;
+  /** Why Google was not used although a key is configured. */
+  googleError?: string | null;
 }
 
 /**
@@ -60,9 +62,10 @@ export async function resolveBasemap(key: MapStyleKey, googleKey: string | null)
       };
     } catch (err) {
       console.warn('Google Maps tiles unavailable, using OpenStreetMap', err);
+      return { style: styleFor(key), provider: 'osm', googleError: err instanceof GoogleApiError ? err.reason : 'Could not reach Google.' };
     }
   }
-  return { style: styleFor(key), provider: 'osm' };
+  return { style: styleFor(key), provider: 'osm', googleError: null };
 }
 
 /** Used when the tile server is unreachable: a plain background so markers & boundary still work. */

@@ -2,16 +2,23 @@ import { motion } from 'motion/react';
 import { ChevronRight, KeyRound, Plus, Settings, ShieldCheck, BookOpen } from 'lucide-react';
 import { useState } from 'react';
 import { RadarBackdrop } from '@/components/RadarBackdrop';
-import { Button, Wordmark } from '@/components/ui';
+import { Button, Pill, Wordmark } from '@/components/ui';
+import { isTestServer, useAppConfig } from '@/lib/appConfig';
 import { navigate } from '@/lib/router';
 import { sessions } from '@/lib/sessions';
 
 export function WelcomeScreen() {
   const [saved] = useState(() => sessions.list().slice(0, 3));
+  const testServer = useAppConfig((s) => isTestServer(s.config));
   return (
     <div className="relative flex h-full flex-col overflow-hidden">
       <RadarBackdrop />
-      <div className="safe-top safe-x relative z-10 flex justify-end gap-1">
+      <div className="safe-top safe-x relative z-10 flex items-center justify-end gap-1">
+        {testServer && (
+          <span className="mr-auto" data-testid="test-server">
+            <Pill tone="warn">Test server</Pill>
+          </span>
+        )}
         <button type="button" aria-label="Settings" onClick={() => navigate('/settings')} className="grid size-11 place-items-center rounded-full text-muted hover:bg-surface-3/60 hover:text-fg">
           <Settings className="size-5" />
         </button>

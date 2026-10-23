@@ -2,7 +2,7 @@
 
 Legend: [x] done and tested · [~] partial / see notes · [ ] not done
 
-Test counts at last update: **71 unit/integration** (Vitest) and **8 e2e scenarios × 2 device profiles = 16 runs** (Playwright: iPhone 14, Pixel 7).
+Test counts at last update: **85 unit/integration** (Vitest) and **12 e2e scenarios × 2 device profiles = 24 runs** (Playwright: iPhone 14, Pixel 7).
 
 ## M1 Planning & scaffolding
 - [x] PLAN.md (stack evaluation, architecture, milestones, acceptance criteria)
@@ -92,6 +92,13 @@ Test counts at last update: **71 unit/integration** (Vitest) and **8 e2e scenari
 - [x] Version shown in Settings and reported by `/api/health` and the startup log
 - [x] `npm run package` creates an installable archive; tested by installing it in a clean folder with production dependencies only
 - [x] CHANGELOG.md; git tag `v1.0.0`
+
+## M14 Release 1.1.0: Google Maps checks
+- [x] `npm run check:google` key checker with plain-language explanations (tested against a mock Google server: valid, invalid key, referrer blocked, referrer allowed, API disabled, no key, unreachable)
+- [x] Settings → Maps: provider, refusal reason, live "Check Google Maps" (e2e with mocked Google: working and refused keys)
+- [x] "Test server" label when fast pings / simulated GPS are allowed (e2e)
+- [x] `npm run package:test`: test package with ready `.env` and instructions
+- [~] Still not checked against the real Google APIs (no key or network access here)
 
 ## Evaluated and deferred
 - **Team chat**: skipped for now. Players already have group chats, and in-app chat invites phone use while moving or driving.
