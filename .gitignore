@@ -11,3 +11,5 @@ playwright-report
 .DS_Store
 test-results/
 release/
+bin/
+game-address.txt

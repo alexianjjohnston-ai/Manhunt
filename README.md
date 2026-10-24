@@ -92,10 +92,11 @@ Browsers only grant location on **HTTPS** (or `localhost`), so a phone can't use
 | `npm run dev` | Server and client with hot reload |
 | `npm run build` | Builds the client into `dist/web` and bundles the server into `dist/server/main.js` |
 | `npm start` | Runs the production build on this machine (Windows/macOS/Linux; reads `.env`) |
+| `npm run play` | `npm start` plus a free Cloudflare quick tunnel, printing the https address for phones (downloads `cloudflared` if needed). The package's double-click launchers run this |
 | `npm run typecheck` | TypeScript, strict, whole repo |
 | `npm test` | Vitest unit and integration tests |
 | `npm run test:e2e` | Playwright mobile end-to-end tests (builds and starts its own server on :8799) |
-| `npm run package` | Builds `release/manhunt-<version>.tar.gz`: the built app, ready to install with `npm ci --omit=dev && npm start` |
+| `npm run package` | Builds `release/manhunt-<version>.zip` and `.tar.gz`: the built app with double-click launchers and `START HERE.txt` |
 | `npm run package:test` | Builds `release/manhunt-<version>-test.tar.gz`: the same app with a ready `.env` (fast pings and simulated GPS on, a slot for the Google key) and test instructions |
 | `npm run check:google` | Calls Google with the key in `.env` and says in plain words what is wrong, if anything. Add `-- --referer https://your-address/` when the key is restricted to websites |
 | `npm run simulate` | Bot simulation against a running server (see below) |
@@ -223,6 +224,16 @@ There are no secret keys. Player tokens are random values generated per game, an
 ## Host it on your own computer
 
 A Windows, Mac or Linux PC is enough for games with friends. The PC runs the server, and a free tunnel gives it the HTTPS address that phones need for location. You don't need router port forwarding.
+
+### The quick way: one double-click
+
+1. Install [Node.js](https://nodejs.org) (LTS), once.
+2. Download `manhunt-<version>.zip` (from a release, or build it with `npm run package`) and unzip it.
+3. Double-click **Start MANHUNT (Windows).bat** or **Start MANHUNT (Mac).command** (on a Mac, right-click → Open the first time). From a terminal, `npm run play` does the same.
+
+The first start installs the dependencies and downloads Cloudflare's official `cloudflared` into `bin/`. Every start then prints a box with a free `https://….trycloudflare.com` address (also saved in `game-address.txt`). Open it on your phone, create a game, and friends join with the code or QR. Keep the window open and the PC awake until the game ends. The address changes on every start. `START HERE.txt` in the package has the same steps plus a pre-game checklist.
+
+The sections below do the same thing by hand, and cover stable addresses.
 
 ### 1. One-time setup
 

@@ -100,6 +100,11 @@ Test counts at last update: **85 unit/integration** (Vitest) and **12 e2e scenar
 - [x] `npm run package:test`: test package with ready `.env` and instructions
 - [~] Still not checked against the real Google APIs (no key or network access here)
 
+## M15 Release 1.2.0: one double-click game night
+- [x] `scripts/play.mjs` (`npm run play`): first-run install, server start, cloudflared download, quick tunnel, address banner, retries (tested from an unzipped package: install, start, address banner with Cloudflare's real output format, real cloudflared download, retry and error path)
+- [x] Windows `.bat` and Mac `.command` launchers, `.zip` release, `START HERE.txt`
+- [~] A real quick tunnel was not opened from this environment (its DNS blocks trycloudflare.com); the Windows launcher was not run on Windows
+
 ## Evaluated and deferred
 - **Team chat**: skipped for now. Players already have group chats, and in-app chat invites phone use while moving or driving.
 - **Web Push for pings**: deferred. iOS only supports push for installed PWAs, it needs VAPID key management, and push does not fix background GPS.

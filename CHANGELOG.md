@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.0 — one double-click game night
+
+- **Start MANHUNT (Windows).bat** and **Start MANHUNT (Mac).command**: install on first run, start the server, open a free Cloudflare quick tunnel, and print the https address for phones (saved in `game-address.txt`). `npm run play` does the same from a terminal.
+- `cloudflared` is downloaded automatically from Cloudflare's official GitHub releases when it isn't installed. A failed tunnel is retried three times and explained.
+- The release is also a `.zip`, which opens with a double-click on Windows and macOS. `START HERE.txt` replaces `INSTALL.txt` and includes a pre-game checklist.
+
 ## 1.1.0 — Google Maps checks and a test build
 
 - **Settings → Maps** shows where map data comes from (Google or OpenStreetMap), explains in plain words why Google refused a key (invalid key, website not allowed, API not enabled, billing, quota), and has a **Check Google Maps** button that tests the key from that device.
